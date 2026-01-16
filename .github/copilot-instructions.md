@@ -26,7 +26,8 @@ The application is built as a single-page application (SPA) designed to run on C
 bun install
 
 # Development server with hot reload
-# Note: package.json references src/index.ts, but the actual frontend entry is src/frontend.tsx
+# Note: package.json script references src/index.ts which doesn't exist;
+# the actual React entry point is src/frontend.tsx referenced from src/index.html
 bun dev
 
 # Production build (uses build.ts script)
@@ -132,8 +133,8 @@ Example:
 
 ### Do Not Modify
 - `node_modules/` - managed by Bun
-- `dist/` - build output directory (default)
-- `out/` - alternative build output directory
+- `dist/` - build output directory (used by wrangler.jsonc)
+- `out/` - listed in .gitignore, may be used for alternative builds
 - `.env` files or any secrets
 - `bun.lock` - unless updating dependencies
 
