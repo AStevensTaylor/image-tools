@@ -130,17 +130,15 @@ export function ImageGallery({
   };
 
   return (
-    <div className="h-full flex flex-col md:flex-col bg-card border-t md:border-t-0 md:border-r border-border">
+    <div className="h-full flex flex-col bg-card border-t md:border-t-0 md:border-r border-border">
       {/* Mobile: Horizontal layout with upload button on left, Desktop: Vertical with header */}
       <div className="p-2 md:p-4 border-b border-border flex md:flex-col gap-2">
-        <div className="flex-1 md:flex-none">
-          <h2 className="text-sm md:text-lg font-semibold mb-2 md:mb-3 hidden md:block">Image Gallery</h2>
-          <Button onClick={handleUploadClick} className="w-full" size="sm">
-            <Upload className="size-4" />
-            <span className="hidden md:inline">Upload Images</span>
-            <span className="md:hidden">Upload</span>
-          </Button>
-        </div>
+        <h2 className="text-sm md:text-lg font-semibold mb-2 md:mb-3 hidden md:block">Image Gallery</h2>
+        <Button onClick={handleUploadClick} className="w-full md:w-full flex-1 md:flex-none" size="sm">
+          <Upload className="size-4" />
+          <span className="hidden md:inline">Upload Images</span>
+          <span className="md:hidden">Upload</span>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"
@@ -164,7 +162,7 @@ export function ImageGallery({
             </p>
           </div>
         ) : (
-          <div className="flex md:grid md:grid-cols-2 gap-2 h-full md:h-auto">
+          <div className="flex md:grid md:grid-cols-2 gap-2 md:h-auto">
             {images.map((image) => (
               <ImageThumbnail
                 key={image.id}
