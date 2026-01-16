@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { parseGIF, decompressFrames } from "gifuct-js";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Play, Pause, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  isFileSystemAccessSupported, 
+  requestDirectory, 
+  saveFilesToDirectory,
+  dataUrlToBlob 
+} from "@/lib/fileSystem";
 
 interface GifFrameExtractorProps {
   imageUrl: string;
@@ -220,6 +225,37 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     });
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
+
+  const saveToDirectory = async () => {
+    const dirHandle = await requestDirectory();
+    if (!dirHandle) return;
+
+    const selected = frames.filter((f) => selectedFrames.has(f.index));
+    if (selected.length === 0) return;
+
+    setIsSaving(true);
+    setSaveProgress({ current: 0, total: selected.length });
+
+    try {
+      const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+      const files = selected.map((frame) => ({
+        filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,
+        data: dataUrlToBlob(frame.dataUrl),
+        subPath: "frames",
+      }));
+
+      await saveFilesToDirectory(dirHandle, files, (current, total) => {
+        setSaveProgress({ current, total });
+      });
+    } catch (err) {
+      console.error("Failed to save frames:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const goToPrevFrame = () => {
     setCurrentFrame((prev) => (prev - 1 + frames.length) % frames.length);
   };
@@ -313,16 +349,30 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
           </Button>
           <div className="flex-1" />
           <span className="text-sm text-muted-foreground">
-            {selectedFrames.size} selected
+            {isSaving 
+              ? `Saving ${saveProgress.current}/${saveProgress.total}...` 
+              : `${selectedFrames.size} selected`}
           </span>
           <Button
             size="sm"
             onClick={downloadSelected}
-            disabled={selectedFrames.size === 0}
+            disabled={selectedFrames.size === 0 || isSaving}
           >
             <Download className="size-4" />
-            Download Selected
+            Download
           </Button>
+          {isFileSystemAccessSupported() && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={saveToDirectory}
+              disabled={selectedFrames.size === 0 || isSaving}
+              title="Save to a folder on your computer"
+            >
+              <FolderDown className="size-4" />
+              Save to Folder
+            </Button>
+          )}
         </div>
 
         {/* Frame grid */}

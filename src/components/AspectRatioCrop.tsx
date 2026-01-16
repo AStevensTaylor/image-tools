@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Download, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AspectRatioCropProps {
   imageUrl: string;
@@ -16,9 +17,37 @@ interface CropBox {
   height: number;
 }
 
+interface AspectPreset {
+  label: string;
+  width: number;
+  height: number;
+  category: string;
+}
+
+const aspectPresets: AspectPreset[] = [
+  // Film & Video
+  { label: "16:9", width: 16, height: 9, category: "Film" },
+  { label: "4:3", width: 4, height: 3, category: "Film" },
+  { label: "21:9", width: 21, height: 9, category: "Film" },
+  { label: "2.35:1", width: 235, height: 100, category: "Film" },
+  { label: "1.85:1", width: 185, height: 100, category: "Film" },
+  // Social Media
+  { label: "1:1", width: 1, height: 1, category: "Social" },
+  { label: "4:5", width: 4, height: 5, category: "Social" },
+  { label: "9:16", width: 9, height: 16, category: "Social" },
+  // Photo
+  { label: "3:2", width: 3, height: 2, category: "Photo" },
+  { label: "5:4", width: 5, height: 4, category: "Photo" },
+  { label: "7:5", width: 7, height: 5, category: "Photo" },
+  // Michi/VaultX
+  { label: "Double", width: 70, height: 47, category: "Michi/VaultX" },
+  { label: "Single", width: 69, height: 94, category: "Michi/VaultX" },
+];
+
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
   const [aspectWidth, setAspectWidth] = useState("16");
   const [aspectHeight, setAspectHeight] = useState("9");
+  const [activePreset, setActivePreset] = useState<string | null>("16:9");
   const [cropBox, setCropBox] = useState<CropBox | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -31,6 +60,18 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
   const aspectRatio =
     parseFloat(aspectWidth) / parseFloat(aspectHeight) || 16 / 9;
+
+  const applyPreset = (preset: AspectPreset) => {
+    setAspectWidth(preset.width.toString());
+    setAspectHeight(preset.height.toString());
+    setActivePreset(preset.label);
+  };
+
+  const handleCustomInput = (width: string, height: string) => {
+    setAspectWidth(width);
+    setAspectHeight(height);
+    setActivePreset(null);
+  };
 
   const initializeCropBox = useCallback(() => {
     if (!imageSize.width || !imageSize.height) return;
@@ -211,42 +252,66 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
   return (
     <div className="h-full flex flex-col p-6">
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-xl font-semibold">Aspect Ratio Crop</h2>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Label htmlFor="aspect-width" className="sr-only">
-              Width
-            </Label>
-            <Input
-              id="aspect-width"
-              type="number"
-              value={aspectWidth}
-              onChange={(e) => setAspectWidth(e.target.value)}
-              className="w-16"
-              min="1"
-            />
-            <span className="text-muted-foreground">:</span>
-            <Label htmlFor="aspect-height" className="sr-only">
-              Height
-            </Label>
-            <Input
-              id="aspect-height"
-              type="number"
-              value={aspectHeight}
-              onChange={(e) => setAspectHeight(e.target.value)}
-              className="w-16"
-              min="1"
-            />
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Aspect Ratio Crop</h2>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Label htmlFor="aspect-width" className="sr-only">
+                Width
+              </Label>
+              <Input
+                id="aspect-width"
+                type="number"
+                value={aspectWidth}
+                onChange={(e) => handleCustomInput(e.target.value, aspectHeight)}
+                className="w-16"
+                min="1"
+              />
+              <span className="text-muted-foreground">:</span>
+              <Label htmlFor="aspect-height" className="sr-only">
+                Height
+              </Label>
+              <Input
+                id="aspect-height"
+                type="number"
+                value={aspectHeight}
+                onChange={(e) => handleCustomInput(aspectWidth, e.target.value)}
+                className="w-16"
+                min="1"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={initializeCropBox}>
+              <RotateCcw className="size-4" />
+              Reset
+            </Button>
+            <Button size="sm" onClick={handleCrop} disabled={!cropBox}>
+              <Download className="size-4" />
+              Download Crop
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={initializeCropBox}>
-            <RotateCcw className="size-4" />
-            Reset
-          </Button>
-          <Button size="sm" onClick={handleCrop} disabled={!cropBox}>
-            <Download className="size-4" />
-            Download Crop
-          </Button>
+        </div>
+
+        {/* Aspect ratio presets */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {["Film", "Social", "Photo", "Michi/VaultX"].map((category) => (
+            <div key={category} className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground mr-1">{category}:</span>
+              {aspectPresets
+                .filter((p) => p.category === category)
+                .map((preset) => (
+                  <Button
+                    key={preset.label}
+                    variant={activePreset === preset.label ? "default" : "outline"}
+                    size="sm"
+                    className={cn("h-7 px-2 text-xs")}
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+            </div>
+          ))}
         </div>
       </div>
 

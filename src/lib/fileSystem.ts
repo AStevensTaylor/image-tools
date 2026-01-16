@@ -1,0 +1,80 @@
+// Check if File System Access API is supported
+export function isFileSystemAccessSupported(): boolean {
+  return "showDirectoryPicker" in window;
+}
+
+// Request directory access from user
+export async function requestDirectory(): Promise<FileSystemDirectoryHandle | null> {
+  if (!isFileSystemAccessSupported()) {
+    return null;
+  }
+
+  try {
+    const handle = await (window as any).showDirectoryPicker({
+      mode: "readwrite",
+      startIn: "downloads",
+    });
+    return handle;
+  } catch (err) {
+    // User cancelled or permission denied
+    if ((err as Error).name !== "AbortError") {
+      console.error("Failed to get directory access:", err);
+    }
+    return null;
+  }
+}
+
+// Save a file to the directory
+export async function saveFileToDirectory(
+  dirHandle: FileSystemDirectoryHandle,
+  filename: string,
+  data: Blob | string,
+  subPath?: string
+): Promise<void> {
+  let targetDir = dirHandle;
+
+  // Create subdirectories if specified
+  if (subPath) {
+    const parts = subPath.split("/").filter(Boolean);
+    for (const part of parts) {
+      targetDir = await targetDir.getDirectoryHandle(part, { create: true });
+    }
+  }
+
+  const fileHandle = await targetDir.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+
+  if (typeof data === "string") {
+    await writable.write(data);
+  } else {
+    await writable.write(data);
+  }
+
+  await writable.close();
+}
+
+// Save multiple files to directory with progress callback
+export async function saveFilesToDirectory(
+  dirHandle: FileSystemDirectoryHandle,
+  files: Array<{ filename: string; data: Blob | string; subPath?: string }>,
+  onProgress?: (current: number, total: number, filename: string) => void
+): Promise<void> {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    onProgress?.(i + 1, files.length, file.filename);
+    await saveFileToDirectory(dirHandle, file.filename, file.data, file.subPath);
+  }
+}
+
+// Convert data URL to Blob
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mimeMatch = header.match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : "image/png";
+  const binary = atob(base64);
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    array[i] = binary.charCodeAt(i);
+  }
+  return new Blob([array], { type: mime });
+}
