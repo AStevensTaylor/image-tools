@@ -7,8 +7,7 @@
     "dev": "bun --hot src/index.ts",
     "start": "NODE_ENV=production bun src/index.ts",
     "build": "bun run build.ts",
-    "deploy": "bun run build && wrangler pages deploy dist --project-name=image-tools",
-    "deploy:preview": "bun run build && wrangler pages deploy dist --project-name=image-tools --branch=preview"
+    "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
