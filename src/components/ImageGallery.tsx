@@ -67,7 +67,8 @@ function ImageThumbnail({
   return (
     <div
       className={cn(
-        "relative aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all",
+        "relative rounded-md overflow-hidden cursor-pointer border-2 transition-all",
+        "aspect-square min-w-[120px] md:min-w-0",
         isSelected
           ? "border-primary ring-2 ring-primary/20"
           : "border-transparent hover:border-muted-foreground/30"
@@ -129,13 +130,17 @@ export function ImageGallery({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-r border-border">
-      <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold mb-3">Image Gallery</h2>
-        <Button onClick={handleUploadClick} className="w-full" size="sm">
-          <Upload className="size-4" />
-          Upload Images
-        </Button>
+    <div className="h-full flex flex-col md:flex-col bg-card border-t md:border-t-0 md:border-r border-border">
+      {/* Mobile: Horizontal layout with upload button on left, Desktop: Vertical with header */}
+      <div className="p-2 md:p-4 border-b border-border flex md:flex-col gap-2">
+        <div className="flex-1 md:flex-none">
+          <h2 className="text-sm md:text-lg font-semibold mb-2 md:mb-3 hidden md:block">Image Gallery</h2>
+          <Button onClick={handleUploadClick} className="w-full" size="sm">
+            <Upload className="size-4" />
+            <span className="hidden md:inline">Upload Images</span>
+            <span className="md:hidden">Upload</span>
+          </Button>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -147,7 +152,7 @@ export function ImageGallery({
       </div>
 
       <div
-        className="flex-1 overflow-y-auto p-2"
+        className="flex-1 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden p-2"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
@@ -159,7 +164,7 @@ export function ImageGallery({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex md:grid md:grid-cols-2 gap-2 h-full md:h-auto">
             {images.map((image) => (
               <ImageThumbnail
                 key={image.id}
