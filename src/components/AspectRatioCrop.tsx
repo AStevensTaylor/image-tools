@@ -135,7 +135,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     };
   };
 
-  const getTouchPosition = (e: React.TouchEvent) => {
+  const getTouchPosition = (e: React.TouchEvent | TouchEvent) => {
     if (!imageRef.current || e.touches.length === 0) return { x: 0, y: 0 };
     const rect = imageRef.current.getBoundingClientRect();
     const touch = e.touches[0];
@@ -221,12 +221,9 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     (e: TouchEvent) => {
       if (!cropBox || (!isDragging && !isResizing) || e.touches.length === 0) return;
 
-      const rect = imageRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      e.preventDefault(); // Prevent scrolling while dragging/resizing
 
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
+      const { x, y } = getTouchPosition(e);
 
       if (isDragging) {
         const deltaX = x - dragStart.x;
@@ -280,7 +277,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     if (isDragging || isResizing) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
-      window.addEventListener("touchmove", handleTouchMove);
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
       window.addEventListener("touchend", handleTouchEnd);
       return () => {
         window.removeEventListener("mousemove", handleMouseMove);
