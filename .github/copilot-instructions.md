@@ -50,7 +50,7 @@ bun run deploy
 │   │   └── PngConverter.tsx
 │   ├── lib/              # Utility functions
 │   ├── App.tsx           # Main application component
-│   ├── index.tsx         # Entry point
+│   ├── frontend.tsx      # Entry point (React root setup)
 │   └── index.html        # HTML template
 ├── public/               # Static assets
 ├── styles/               # Additional styles
@@ -87,7 +87,12 @@ interface ImageItem {
   url: string;
 }
 
-export function ImageGallery({ images, onImageSelect }: Props) {
+interface ImageGalleryProps {
+  images: ImageItem[];
+  onImageSelect: (id: string) => void;
+}
+
+export function ImageGallery({ images, onImageSelect }: ImageGalleryProps) {
   const handleSelect = useCallback((id: string) => {
     onImageSelect(id);
   }, [onImageSelect]);
