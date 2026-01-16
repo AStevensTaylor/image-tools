@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
@@ -9,12 +9,92 @@ interface ImageItem {
   url: string;
 }
 
+interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
 interface ImageGalleryProps {
   images: ImageItem[];
   selectedImageId: string | null;
   onImagesAdd: (files: FileList) => void;
   onImageSelect: (id: string) => void;
   onImageRemove: (id: string) => void;
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+function getAspectRatio(width: number, height: number): string {
+  const divisor = gcd(width, height);
+  const w = width / divisor;
+  const h = height / divisor;
+  // Simplify common ratios
+  if (w > 50 || h > 50) {
+    const ratio = width / height;
+    if (Math.abs(ratio - 16/9) < 0.01) return "16:9";
+    if (Math.abs(ratio - 4/3) < 0.01) return "4:3";
+    if (Math.abs(ratio - 3/2) < 0.01) return "3:2";
+    if (Math.abs(ratio - 1) < 0.01) return "1:1";
+    if (Math.abs(ratio - 9/16) < 0.01) return "9:16";
+    return `${ratio.toFixed(2)}:1`;
+  }
+  return `${w}:${h}`;
+}
+
+function ImageThumbnail({ 
+  image, 
+  isSelected, 
+  onSelect, 
+  onRemove 
+}: { 
+  image: ImageItem; 
+  isSelected: boolean; 
+  onSelect: () => void; 
+  onRemove: () => void;
+}) {
+  const [dimensions, setDimensions] = useState<ImageDimensions | null>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = image.url;
+  }, [image.url]);
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all",
+        isSelected
+          ? "border-primary ring-2 ring-primary/20"
+          : "border-transparent hover:border-muted-foreground/30"
+      )}
+      onClick={onSelect}
+    >
+      <img
+        src={image.url}
+        alt={image.file.name}
+        className="w-full h-full object-cover"
+      />
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="absolute top-1 right-1 p-1 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+      >
+        <X className="size-3" />
+      </button>
+      {dimensions && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-1.5 py-1 text-center">
+          {dimensions.width}×{dimensions.height} • {getAspectRatio(dimensions.width, dimensions.height)}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ImageGallery({
@@ -81,31 +161,13 @@ export function ImageGallery({
         ) : (
           <div className="grid grid-cols-2 gap-2">
             {images.map((image) => (
-              <div
+              <ImageThumbnail
                 key={image.id}
-                className={cn(
-                  "relative aspect-square rounded-md overflow-hidden cursor-pointer border-2 transition-all",
-                  selectedImageId === image.id
-                    ? "border-primary ring-2 ring-primary/20"
-                    : "border-transparent hover:border-muted-foreground/30"
-                )}
-                onClick={() => onImageSelect(image.id)}
-              >
-                <img
-                  src={image.url}
-                  alt={image.file.name}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onImageRemove(image.id);
-                  }}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
+                image={image}
+                isSelected={selectedImageId === image.id}
+                onSelect={() => onImageSelect(image.id)}
+                onRemove={() => onImageRemove(image.id)}
+              />
             ))}
           </div>
         )}
