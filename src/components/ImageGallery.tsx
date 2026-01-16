@@ -182,7 +182,7 @@ export function ImageGallery({
       <div
         className={cn(
           "flex-1 overflow-x-auto md:overflow-y-auto p-2 transition-all duration-300",
-          isCollapsed && "md:flex hidden"
+          isCollapsed && "hidden md:flex"
         )}
         onClick={(e) => {
           // Prevent clicks in gallery from bubbling up
