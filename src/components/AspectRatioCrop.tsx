@@ -135,9 +135,31 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     };
   };
 
+  const getTouchPosition = (e: React.TouchEvent | TouchEvent) => {
+    if (!imageRef.current || e.touches.length === 0) return { x: 0, y: 0 };
+    const rect = imageRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+  };
+
   const handleMouseDown = (e: React.MouseEvent, action: "drag" | "resize") => {
     e.preventDefault();
     const pos = getMousePosition(e);
+    setDragStart(pos);
+
+    if (action === "drag") {
+      setIsDragging(true);
+    } else {
+      setIsResizing(true);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, action: "drag" | "resize") => {
+    e.preventDefault();
+    const pos = getTouchPosition(e);
     setDragStart(pos);
 
     if (action === "drag") {
@@ -195,7 +217,58 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     [cropBox, isDragging, isResizing, dragStart, aspectRatio, imageSize]
   );
 
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (!cropBox || (!isDragging && !isResizing) || e.touches.length === 0) return;
+
+      e.preventDefault(); // Prevent scrolling while dragging/resizing
+
+      const { x, y } = getTouchPosition(e);
+
+      if (isDragging) {
+        const deltaX = x - dragStart.x;
+        const deltaY = y - dragStart.y;
+
+        let newX = cropBox.x + deltaX;
+        let newY = cropBox.y + deltaY;
+
+        newX = Math.max(0, Math.min(newX, imageSize.width - cropBox.width));
+        newY = Math.max(0, Math.min(newY, imageSize.height - cropBox.height));
+
+        setCropBox({ ...cropBox, x: newX, y: newY });
+        setDragStart({ x, y });
+      } else if (isResizing) {
+        const deltaX = x - (cropBox.x + cropBox.width);
+        const deltaY = y - (cropBox.y + cropBox.height);
+
+        let newWidth = cropBox.width + deltaX;
+        let newHeight = newWidth / aspectRatio;
+
+        if (deltaY > deltaX / aspectRatio) {
+          newHeight = cropBox.height + deltaY;
+          newWidth = newHeight * aspectRatio;
+        }
+
+        newWidth = Math.max(50, Math.min(newWidth, imageSize.width - cropBox.x));
+        newHeight = newWidth / aspectRatio;
+
+        if (cropBox.y + newHeight > imageSize.height) {
+          newHeight = imageSize.height - cropBox.y;
+          newWidth = newHeight * aspectRatio;
+        }
+
+        setCropBox({ ...cropBox, width: newWidth, height: newHeight });
+      }
+    },
+    [cropBox, isDragging, isResizing, dragStart, aspectRatio, imageSize]
+  );
+
   const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setIsResizing(false);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
     setIsResizing(false);
   }, []);
@@ -204,12 +277,16 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     if (isDragging || isResizing) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
+      window.addEventListener("touchend", handleTouchEnd);
       return () => {
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDragging, isResizing, handleMouseMove, handleMouseUp]);
+  }, [isDragging, isResizing, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
   const handleCrop = async () => {
     if (!cropBox || !imageRef.current) return;
@@ -374,6 +451,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
                   boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
                 }}
                 onMouseDown={(e) => handleMouseDown(e, "drag")}
+                onTouchStart={(e) => handleTouchStart(e, "drag")}
               >
                 {/* Grid lines */}
                 <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
@@ -388,6 +466,10 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     handleMouseDown(e, "resize");
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    handleTouchStart(e, "resize");
                   }}
                 />
 
