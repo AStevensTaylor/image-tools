@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
-import { rm } from "fs/promises";
+import { rm, cp } from "fs/promises";
 import path from "path";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -134,6 +134,21 @@ const result = await Bun.build({
   },
   ...cliConfig,
 });
+
+// Copy public files to dist
+const publicDir = path.join(process.cwd(), "public");
+if (existsSync(publicDir)) {
+  await cp(publicDir, outdir, { recursive: true });
+}
+
+// Inject PWA links into HTML
+const htmlPath = path.join(outdir, "index.html");
+if (existsSync(htmlPath)) {
+  let html = await Bun.file(htmlPath).text();
+  const pwaLinks = `<link rel="manifest" href="/manifest.json" />\n    <link rel="apple-touch-icon" href="/icon-192.png" />`;
+  html = html.replace('</head>', `    ${pwaLinks}\n  </head>`);
+  await Bun.write(htmlPath, html);
+}
 
 const end = performance.now();
 
