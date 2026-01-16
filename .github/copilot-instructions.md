@@ -26,9 +26,10 @@ The application is built as a single-page application (SPA) designed to run on C
 bun install
 
 # Development server with hot reload
+# Note: package.json references src/index.ts, but the actual frontend entry is src/frontend.tsx
 bun dev
 
-# Production build
+# Production build (uses build.ts script)
 bun run build
 
 # Run in production mode (locally)
@@ -131,10 +132,10 @@ Example:
 
 ### Do Not Modify
 - `node_modules/` - managed by Bun
-- `dist/` - build output directory
+- `dist/` - build output directory (default)
+- `out/` - alternative build output directory
 - `.env` files or any secrets
 - `bun.lock` - unless updating dependencies
-- Build artifacts in `out/` directory
 
 ### Security
 - Never commit API keys, tokens, or sensitive data
