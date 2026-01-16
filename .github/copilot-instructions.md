@@ -133,7 +133,7 @@ Example:
 
 ### Do Not Modify
 - `node_modules/` - managed by Bun
-- `dist/` - build output directory (used by wrangler.jsonc)
+- `dist/` - build output directory (configured in wrangler.jsonc as assets directory)
 - `out/` - listed in .gitignore, may be used for alternative builds
 - `.env` files or any secrets
 - `bun.lock` - unless updating dependencies
