@@ -150,7 +150,7 @@ export function ImageGallery({
       </div>
 
       <div
-        className="flex-1 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden p-2"
+        className="flex-1 overflow-x-auto md:overflow-y-auto p-2"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
@@ -162,7 +162,7 @@ export function ImageGallery({
             </p>
           </div>
         ) : (
-          <div className="flex md:grid md:grid-cols-2 gap-2 md:h-auto">
+          <div className="flex md:grid md:grid-cols-2 gap-2">
             {images.map((image) => (
               <ImageThumbnail
                 key={image.id}
