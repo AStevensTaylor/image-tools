@@ -26,6 +26,7 @@ export function App() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("crop");
+  const [isGalleryCollapsed, setIsGalleryCollapsed] = useState(false);
 
   const selectedImage = images.find((img) => img.id === selectedImageId);
   const isAnimatedFormat = selectedImage?.file.type === "image/gif" || selectedImage?.file.type === "image/webp";
@@ -69,20 +70,36 @@ export function App() {
   }, [selectedImageId, images]);
 
   return (
-    <div className="fixed inset-0 flex">
-      {/* Left sidebar - 30% */}
-      <div className="w-[30%] min-w-[250px] max-w-[400px]">
+    <div className="fixed inset-0 flex flex-col md:flex-row">
+      {/* Desktop: Left sidebar - 30% | Mobile: Bottom carousel - 30% */}
+      <div 
+        className={cn(
+          "order-2 md:order-1 md:h-full md:w-[30%] md:min-w-[250px] md:max-w-[400px]",
+          "transition-all duration-300 ease-in-out",
+          isGalleryCollapsed ? "h-[48px]" : "h-[30%]"
+        )}
+      >
         <ImageGallery
           images={images}
           selectedImageId={selectedImageId}
           onImagesAdd={handleImagesAdd}
           onImageSelect={handleImageSelect}
           onImageRemove={handleImageRemove}
+          isCollapsed={isGalleryCollapsed}
+          onToggleCollapse={() => setIsGalleryCollapsed(!isGalleryCollapsed)}
         />
       </div>
 
-      {/* Right content area - 70% */}
-      <div className="flex-1 bg-background overflow-hidden flex flex-col">
+      {/* Desktop: Right content area - 70% | Mobile: Top manipulation - 70% */}
+      <div 
+        className="order-1 md:order-2 flex-1 bg-background overflow-hidden flex flex-col"
+        onClick={() => {
+          // Collapse gallery when clicking on manipulation area on mobile
+          if (!isGalleryCollapsed && window.innerWidth < 768) {
+            setIsGalleryCollapsed(true);
+          }
+        }}
+      >
         {/* Tool selector */}
         <div className="flex gap-2 p-4 border-b border-border bg-card">
           {tools.map((tool) => {
@@ -137,8 +154,11 @@ export function App() {
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
               <ImageIcon className="size-16 mb-4 opacity-30" />
               <p className="text-lg">Select an image to get started</p>
-              <p className="text-sm mt-1">
+              <p className="text-sm mt-1 hidden md:inline">
                 Upload images using the gallery on the left
+              </p>
+              <p className="text-sm mt-1 md:hidden">
+                Upload images using the gallery below
               </p>
             </div>
           )}
