@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Image as ImageIcon, ChevronDown, ChevronUp } from "lucide-react";
 
 interface ImageItem {
   id: string;
@@ -20,6 +20,8 @@ interface ImageGalleryProps {
   onImagesAdd: (files: FileList) => void;
   onImageSelect: (id: string) => void;
   onImageRemove: (id: string) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 function gcd(a: number, b: number): number {
@@ -104,6 +106,8 @@ export function ImageGallery({
   onImagesAdd,
   onImageSelect,
   onImageRemove,
+  isCollapsed = false,
+  onToggleCollapse,
 }: ImageGalleryProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,9 +135,34 @@ export function ImageGallery({
 
   return (
     <div className="h-full flex flex-col bg-card border-t md:border-t-0 md:border-r border-border">
-      {/* Mobile: Horizontal layout with upload button on left, Desktop: Vertical with header */}
-      <div className="p-2 md:p-4 border-b border-border flex md:flex-col gap-2">
+      {/* Mobile: Horizontal layout with upload button and collapse toggle | Desktop: Vertical with header */}
+      <div 
+        className="p-2 md:p-4 border-b border-border flex md:flex-col gap-2 items-center"
+        onClick={(e) => {
+          // Prevent clicks in header from bubbling up
+          e.stopPropagation();
+        }}
+      >
         <h2 className="text-sm md:text-lg font-semibold md:mb-3 hidden md:block">Image Gallery</h2>
+        
+        {/* Mobile collapse/expand button */}
+        {onToggleCollapse && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            className="md:hidden p-1 hover:bg-muted rounded transition-colors"
+            aria-label={isCollapsed ? "Expand gallery" : "Collapse gallery"}
+          >
+            {isCollapsed ? (
+              <ChevronUp className="size-5" />
+            ) : (
+              <ChevronDown className="size-5" />
+            )}
+          </button>
+        )}
+        
         <Button onClick={handleUploadClick} className="w-full flex-1 md:flex-none" size="sm">
           <Upload className="size-4" />
           <span className="hidden md:inline">Upload Images</span>
@@ -149,8 +178,16 @@ export function ImageGallery({
         />
       </div>
 
+      {/* Gallery content - hidden when collapsed on mobile */}
       <div
-        className="flex-1 overflow-x-auto md:overflow-y-auto p-2"
+        className={cn(
+          "flex-1 overflow-x-auto md:overflow-y-auto p-2 transition-all duration-300",
+          isCollapsed && "md:flex hidden"
+        )}
+        onClick={(e) => {
+          // Prevent clicks in gallery from bubbling up
+          e.stopPropagation();
+        }}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
