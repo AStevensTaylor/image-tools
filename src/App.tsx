@@ -1,0 +1,151 @@
+import { useState, useCallback } from "react";
+import { ImageGallery } from "./components/ImageGallery";
+import { AspectRatioCrop } from "./components/AspectRatioCrop";
+import { GifFrameExtractor } from "./components/GifFrameExtractor";
+import { PngConverter } from "./components/PngConverter";
+import { Button } from "./components/ui/button";
+import { Crop, Film, Image as ImageIcon, FileImage } from "lucide-react";
+import { cn } from "./lib/utils";
+import "./index.css";
+
+type Tool = "crop" | "gif-frames" | "png-convert";
+
+interface ImageItem {
+  id: string;
+  file: File;
+  url: string;
+}
+
+const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean }[] = [
+  { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio" },
+  { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP", requiresAnimated: true },
+  { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
+];
+
+export function App() {
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<Tool>("crop");
+
+  const selectedImage = images.find((img) => img.id === selectedImageId);
+  const isAnimatedFormat = selectedImage?.file.type === "image/gif" || selectedImage?.file.type === "image/webp";
+
+  const handleImagesAdd = useCallback((files: FileList) => {
+    const newImages: ImageItem[] = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        url: URL.createObjectURL(file),
+      }));
+
+    setImages((prev) => [...prev, ...newImages]);
+
+    if (newImages.length > 0 && !selectedImageId) {
+      setSelectedImageId(newImages[0].id);
+    }
+  }, [selectedImageId]);
+
+  const handleImageSelect = useCallback((id: string) => {
+    setSelectedImageId(id);
+  }, []);
+
+  const handleImageRemove = useCallback((id: string) => {
+    setImages((prev) => {
+      const newImages = prev.filter((img) => img.id !== id);
+      const removedImage = prev.find((img) => img.id === id);
+      if (removedImage) {
+        URL.revokeObjectURL(removedImage.url);
+      }
+      return newImages;
+    });
+
+    if (selectedImageId === id) {
+      setSelectedImageId((prev) => {
+        const remaining = images.filter((img) => img.id !== id);
+        return remaining.length > 0 ? remaining[0].id : null;
+      });
+    }
+  }, [selectedImageId, images]);
+
+  return (
+    <div className="fixed inset-0 flex">
+      {/* Left sidebar - 30% */}
+      <div className="w-[30%] min-w-[250px] max-w-[400px]">
+        <ImageGallery
+          images={images}
+          selectedImageId={selectedImageId}
+          onImagesAdd={handleImagesAdd}
+          onImageSelect={handleImageSelect}
+          onImageRemove={handleImageRemove}
+        />
+      </div>
+
+      {/* Right content area - 70% */}
+      <div className="flex-1 bg-background overflow-hidden flex flex-col">
+        {/* Tool selector */}
+        <div className="flex gap-2 p-4 border-b border-border bg-card">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+            const isDisabled = tool.requiresAnimated && selectedImage && !isAnimatedFormat;
+            return (
+              <Button
+                key={tool.id}
+                variant={activeTool === tool.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTool(tool.id)}
+                disabled={isDisabled}
+                className={cn(isDisabled && "opacity-50")}
+                title={tool.description}
+              >
+                <Icon className="size-4" />
+                {tool.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Tool content */}
+        <div className="flex-1 overflow-hidden">
+          {selectedImage ? (
+            activeTool === "crop" ? (
+              <AspectRatioCrop
+                imageUrl={selectedImage.url}
+                imageName={selectedImage.file.name}
+              />
+            ) : activeTool === "gif-frames" ? (
+              isAnimatedFormat ? (
+                <GifFrameExtractor
+                  imageUrl={selectedImage.url}
+                  imageName={selectedImage.file.name}
+                  fileType={selectedImage.file.type}
+                />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                  <Film className="size-16 mb-4 opacity-30" />
+                  <p className="text-lg">Select a GIF or WebP to extract frames</p>
+                  <p className="text-sm mt-1">This tool works with animated GIF and WebP files</p>
+                </div>
+              )
+            ) : activeTool === "png-convert" ? (
+              <PngConverter
+                imageUrl={selectedImage.url}
+                imageName={selectedImage.file.name}
+              />
+            ) : null
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+              <ImageIcon className="size-16 mb-4 opacity-30" />
+              <p className="text-lg">Select an image to get started</p>
+              <p className="text-sm mt-1">
+                Upload images using the gallery on the left
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
