@@ -5,7 +5,7 @@ A browser-based image manipulation application built with React and Bun. This to
 ## Features
 
 - **Aspect Ratio Crop**: Crop images with custom or preset aspect ratios, including common film, social media, and photo formats
-- **GIF/WebP Frame Extractor**: Extract individual frames from animated GIF and WebP images
+- **GIF/WebP/Video Frame Extractor**: Extract individual frames from animated GIF, WebP images, and video files (MP4, WebM, MOV, etc.)
 - **PNG Converter**: Convert any image format to PNG while preserving transparency
 
 ## Getting Started
