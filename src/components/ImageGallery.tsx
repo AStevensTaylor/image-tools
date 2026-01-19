@@ -57,14 +57,24 @@ function ImageThumbnail({
   onRemove: () => void;
 }) {
   const [dimensions, setDimensions] = useState<ImageDimensions | null>(null);
+  const isVideo = image.file.type.startsWith("video/");
 
   useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.src = image.url;
-  }, [image.url]);
+    if (isVideo) {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        setDimensions({ width: video.videoWidth, height: video.videoHeight });
+      };
+      video.src = image.url;
+    } else {
+      const img = new Image();
+      img.onload = () => {
+        setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.src = image.url;
+    }
+  }, [image.url, isVideo]);
 
   return (
     <div
@@ -77,11 +87,20 @@ function ImageThumbnail({
       )}
       onClick={onSelect}
     >
-      <img
-        src={image.url}
-        alt={image.file.name}
-        className="w-full h-full object-cover"
-      />
+      {isVideo ? (
+        <video
+          src={image.url}
+          className="w-full h-full object-cover"
+          muted
+          playsInline
+        />
+      ) : (
+        <img
+          src={image.url}
+          alt={image.file.name}
+          className="w-full h-full object-cover"
+        />
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -171,7 +190,7 @@ export function ImageGallery({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           onChange={handleFileChange}
           className="hidden"

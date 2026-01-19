@@ -17,6 +17,11 @@ interface GifFrameExtractorProps {
   fileType: string;
 }
 
+// Helper to check if file is a video format
+const isVideoFormat = (fileType: string): boolean => {
+  return fileType.startsWith("video/");
+};
+
 interface Frame {
   index: number;
   imageData: ImageData;
@@ -42,15 +47,19 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
       setCurrentFrame(0);
 
       try {
-        const response = await fetch(imageUrl);
-        const buffer = await response.arrayBuffer();
-
-        if (fileType === "image/gif") {
-          await loadGifFrames(buffer);
-        } else if (fileType === "image/webp") {
-          await loadWebpFrames(buffer);
+        if (isVideoFormat(fileType)) {
+          await loadVideoFrames(imageUrl);
         } else {
-          setError("Unsupported file type for frame extraction");
+          const response = await fetch(imageUrl);
+          const buffer = await response.arrayBuffer();
+
+          if (fileType === "image/gif") {
+            await loadGifFrames(buffer);
+          } else if (fileType === "image/webp") {
+            await loadWebpFrames(buffer);
+          } else {
+            setError("Unsupported file type for frame extraction");
+          }
         }
       } catch (err) {
         setError("Failed to parse animated image. Make sure it's a valid file.");
@@ -58,6 +67,73 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
       } finally {
         setIsLoading(false);
       }
+    };
+
+    const loadVideoFrames = async (videoUrl: string) => {
+      return new Promise<void>((resolve, reject) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.crossOrigin = "anonymous";
+        
+        video.onerror = () => {
+          reject(new Error("Failed to load video"));
+        };
+        
+        video.onloadedmetadata = async () => {
+          try {
+            const duration = video.duration;
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+            
+            if (!width || !height) {
+              reject(new Error("Invalid video dimensions"));
+              return;
+            }
+            
+            setGifDimensions({ width, height });
+            
+            // Extract frames at regular intervals (aim for ~100 frames max, or 1 per second)
+            const fps = 1; // frames per second to extract
+            const frameCount = Math.min(Math.ceil(duration * fps), 100);
+            const interval = duration / frameCount;
+            
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d")!;
+            
+            const extractedFrames: Frame[] = [];
+            
+            for (let i = 0; i < frameCount; i++) {
+              const timestamp = i * interval;
+              
+              // Seek to the timestamp
+              await new Promise<void>((seekResolve) => {
+                video.currentTime = timestamp;
+                video.onseeked = () => seekResolve();
+              });
+              
+              // Draw the frame
+              ctx.drawImage(video, 0, 0, width, height);
+              const imageData = ctx.getImageData(0, 0, width, height);
+              
+              extractedFrames.push({
+                index: i,
+                imageData,
+                delay: Math.round(interval * 1000), // Convert to milliseconds
+                dataUrl: canvas.toDataURL("image/png"),
+              });
+            }
+            
+            setFrames(extractedFrames);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        };
+        
+        video.src = videoUrl;
+      });
     };
 
     const loadGifFrames = async (buffer: ArrayBuffer) => {
@@ -212,7 +288,8 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
 
   const downloadFrame = (frame: Frame) => {
     const link = document.createElement("a");
-    const baseName = imageName.replace(/\.gif$/i, "");
+    const extension = imageName.match(/\.(gif|webp|mp4|webm|mov|avi)$/i);
+    const baseName = extension ? imageName.replace(extension[0], "") : imageName;
     link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`;
     link.href = frame.dataUrl;
     link.click();
@@ -239,7 +316,8 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     setSaveProgress({ current: 0, total: selected.length });
 
     try {
-      const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+      const extension = imageName.match(/\.(gif|webp|mp4|webm|mov|avi)$/i);
+      const baseName = extension ? imageName.replace(extension[0], "") : imageName;
       const files = selected.map((frame) => ({
         filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,
         data: dataUrlToBlob(frame.dataUrl),
@@ -288,7 +366,9 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
   return (
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">GIF Frame Extractor</h2>
+        <h2 className="text-xl font-semibold">
+          {isVideoFormat(fileType) ? "Video" : "GIF/WebP"} Frame Extractor
+        </h2>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
             {frames.length} frames • {gifDimensions.width}×{gifDimensions.height}

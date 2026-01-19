@@ -18,7 +18,7 @@ interface ImageItem {
 
 const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean }[] = [
   { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio" },
-  { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP", requiresAnimated: true },
+  { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP/Video", requiresAnimated: true },
   { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
 ];
 
@@ -29,11 +29,13 @@ export function App() {
   const [isGalleryCollapsed, setIsGalleryCollapsed] = useState(false);
 
   const selectedImage = images.find((img) => img.id === selectedImageId);
-  const isAnimatedFormat = selectedImage?.file.type === "image/gif" || selectedImage?.file.type === "image/webp";
+  const isAnimatedFormat = selectedImage?.file.type === "image/gif" || 
+                           selectedImage?.file.type === "image/webp" ||
+                           selectedImage?.file.type.startsWith("video/");
 
   const handleImagesAdd = useCallback((files: FileList) => {
     const newImages: ImageItem[] = Array.from(files)
-      .filter((file) => file.type.startsWith("image/"))
+      .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
       .map((file) => ({
         id: crypto.randomUUID(),
         file,
@@ -140,8 +142,8 @@ export function App() {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                   <Film className="size-16 mb-4 opacity-30" />
-                  <p className="text-lg">Select a GIF or WebP to extract frames</p>
-                  <p className="text-sm mt-1">This tool works with animated GIF and WebP files</p>
+                  <p className="text-lg">Select a GIF, WebP, or Video to extract frames</p>
+                  <p className="text-sm mt-1">This tool works with animated GIF, WebP, and video files</p>
                 </div>
               )
             ) : activeTool === "png-convert" ? (
