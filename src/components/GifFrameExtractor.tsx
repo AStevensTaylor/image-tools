@@ -226,7 +226,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
 
   const downloadFrame = (frame: Frame) => {
     const link = document.createElement("a");
-    const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+    const baseName = imageName.replace(/\.[^.]+$/, "");
     const extension = getExportExtension(settings.exportFormat);
     link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`;
     link.href = convertFrameToFormat(frame);
@@ -254,7 +254,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     setSaveProgress({ current: 0, total: selected.length });
 
     try {
-      const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+      const baseName = imageName.replace(/\.[^.]+$/, "");
       const extension = getExportExtension(settings.exportFormat);
       const files = selected.map((frame) => ({
         filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
