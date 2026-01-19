@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSettings, getExportMimeType, getExportExtension } from "@/lib/settings";
 import { 
   isFileSystemAccessSupported, 
   requestDirectory, 
@@ -25,6 +26,7 @@ interface Frame {
 }
 
 export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExtractorProps) {
+  const { settings } = useSettings();
   const [frames, setFrames] = useState<Frame[]>([]);
   const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -210,11 +212,24 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     setSelectedFrames(new Set(frames.filter((_, i) => i % n === 0).map((f) => f.index)));
   };
 
+  const convertFrameToFormat = (frame: Frame): string => {
+    const canvas = document.createElement("canvas");
+    canvas.width = gifDimensions.width;
+    canvas.height = gifDimensions.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.putImageData(frame.imageData, 0, 0);
+    
+    const mimeType = getExportMimeType(settings.exportFormat);
+    const quality = settings.exportFormat === "png" ? undefined : settings.exportQuality;
+    return canvas.toDataURL(mimeType, quality);
+  };
+
   const downloadFrame = (frame: Frame) => {
     const link = document.createElement("a");
-    const baseName = imageName.replace(/\.gif$/i, "");
-    link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`;
-    link.href = frame.dataUrl;
+    const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+    const extension = getExportExtension(settings.exportFormat);
+    link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`;
+    link.href = convertFrameToFormat(frame);
     link.click();
   };
 
@@ -240,9 +255,10 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
 
     try {
       const baseName = imageName.replace(/\.(gif|webp)$/i, "");
+      const extension = getExportExtension(settings.exportFormat);
       const files = selected.map((frame) => ({
-        filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,
-        data: dataUrlToBlob(frame.dataUrl),
+        filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
+        data: dataUrlToBlob(convertFrameToFormat(frame)),
         subPath: "frames",
       }));
 

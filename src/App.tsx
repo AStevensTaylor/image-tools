@@ -3,6 +3,7 @@ import { ImageGallery } from "./components/ImageGallery";
 import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { Button } from "./components/ui/button";
 import { Crop, Film, Image as ImageIcon, FileImage } from "lucide-react";
 import { cn } from "./lib/utils";
@@ -120,6 +121,8 @@ export function App() {
               </Button>
             );
           })}
+          <div className="flex-1" />
+          <SettingsDialog />
         </div>
 
         {/* Tool content */}
