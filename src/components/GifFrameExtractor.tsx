@@ -22,6 +22,9 @@ const isVideoFormat = (fileType: string): boolean => {
   return fileType.startsWith("video/");
 };
 
+// File extension pattern for animated/video formats
+const FRAME_EXTRACT_FILE_EXTENSIONS = /\.(gif|webp|mp4|webm|mov|avi)$/i;
+
 interface Frame {
   index: number;
   imageData: ImageData;
@@ -109,8 +112,12 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
               
               // Seek to the timestamp
               await new Promise<void>((seekResolve) => {
+                const onSeeked = () => {
+                  video.onseeked = null; // Clean up event listener
+                  seekResolve();
+                };
+                video.onseeked = onSeeked;
                 video.currentTime = timestamp;
-                video.onseeked = () => seekResolve();
               });
               
               // Draw the frame
@@ -288,7 +295,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
 
   const downloadFrame = (frame: Frame) => {
     const link = document.createElement("a");
-    const extension = imageName.match(/\.(gif|webp|mp4|webm|mov|avi)$/i);
+    const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
     const baseName = extension ? imageName.replace(extension[0], "") : imageName;
     link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`;
     link.href = frame.dataUrl;
@@ -316,7 +323,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     setSaveProgress({ current: 0, total: selected.length });
 
     try {
-      const extension = imageName.match(/\.(gif|webp|mp4|webm|mov|avi)$/i);
+      const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
       const baseName = extension ? imageName.replace(extension[0], "") : imageName;
       const files = selected.map((frame) => ({
         filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,

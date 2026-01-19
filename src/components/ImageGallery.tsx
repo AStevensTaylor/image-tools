@@ -65,8 +65,13 @@ function ImageThumbnail({
       video.preload = "metadata";
       video.onloadedmetadata = () => {
         setDimensions({ width: video.videoWidth, height: video.videoHeight });
+        video.src = ""; // Release the video resource
       };
       video.src = image.url;
+      
+      return () => {
+        video.src = ""; // Cleanup on unmount
+      };
     } else {
       const img = new Image();
       img.onload = () => {
