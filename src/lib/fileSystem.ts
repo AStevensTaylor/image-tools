@@ -53,6 +53,25 @@ export async function saveFileToDirectory(
   await writable.close();
 }
 
+// Check if files exist in directory
+export async function checkFilesExist(
+  dirHandle: FileSystemDirectoryHandle,
+  filenames: string[]
+): Promise<string[]> {
+  const existingFiles: string[] = [];
+  
+  for (const filename of filenames) {
+    try {
+      await dirHandle.getFileHandle(filename, { create: false });
+      existingFiles.push(filename);
+    } catch (err) {
+      // File doesn't exist, which is fine
+    }
+  }
+  
+  return existingFiles;
+}
+
 // Save multiple files to directory with progress callback
 export async function saveFilesToDirectory(
   dirHandle: FileSystemDirectoryHandle,

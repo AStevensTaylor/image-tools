@@ -9,6 +9,7 @@ import {
   requestDirectory,
   saveFilesToDirectory,
   dataUrlToBlob,
+  checkFilesExist,
 } from "@/lib/fileSystem";
 
 interface BatchCropProps {
@@ -52,6 +53,12 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
   const [filenamePrefix, setFilenamePrefix] = useState(() => {
     return imageName.replace(/\.[^.]+$/, "");
   });
+
+  // Update filename prefix when image changes
+  useEffect(() => {
+    const newPrefix = imageName.replace(/\.[^.]+$/, "");
+    setFilenamePrefix(newPrefix);
+  }, [imageName]);
 
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -280,6 +287,23 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 
     const enabledPresets = presets.filter((p) => p.enabled && cropBoxes[p.id]);
     if (enabledPresets.length === 0) return;
+
+    // Check for existing files
+    const filenames = enabledPresets.map(
+      (preset) => `${filenamePrefix}_${preset.filename}.png`
+    );
+    const existingFiles = await checkFilesExist(dirHandle, filenames);
+
+    // Warn if files would be overwritten
+    if (existingFiles.length > 0) {
+      const fileList = existingFiles.join("\n• ");
+      const confirmed = window.confirm(
+        `The following ${existingFiles.length} file(s) already exist and will be overwritten:\n\n• ${fileList}\n\nDo you want to continue?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
 
     setIsSaving(true);
 
