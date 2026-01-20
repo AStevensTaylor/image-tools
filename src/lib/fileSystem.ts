@@ -122,8 +122,28 @@ export async function clearCachedDirectory(): Promise<void> {
 
 // Check if we have a cached directory
 export async function hasCachedDirectory(): Promise<boolean> {
-  const handle = await getCachedDirectory();
-  return handle !== null;
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(STORE_NAME, "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.get(HANDLE_KEY);
+    
+    return new Promise((resolve) => {
+      request.onsuccess = () => {
+        db.close();
+        const handle = request.result as FileSystemDirectoryHandle | undefined;
+        resolve(!!handle);
+      };
+      
+      request.onerror = () => {
+        db.close();
+        resolve(false);
+      };
+    });
+  } catch (err) {
+    console.error("Failed to check cached directory:", err);
+    return false;
+  }
 }
 
 // Request directory access from user (with caching support)
