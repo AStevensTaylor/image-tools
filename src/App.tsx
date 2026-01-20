@@ -20,7 +20,7 @@ interface ImageItem {
 const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean }[] = [
   { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio" },
   { id: "batch-crop", label: "Batch Crop", icon: Layers, description: "Generate multiple crops for app stores" },
-  { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP", requiresAnimated: true },
+  { id: "gif-frames", label: "Frame Export", icon: Film, description: "Export frames from videos", requiresAnimated: true },
   { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
 ];
 
@@ -144,8 +144,8 @@ export function App() {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                   <Film className="size-16 mb-4 opacity-30" />
-                  <p className="text-lg">Select a GIF, WebP, or Video to extract frames</p>
-                  <p className="text-sm mt-1">This tool works with animated GIF, WebP, and video files</p>
+                  <p className="text-lg">Select a video to extract frames</p>
+                  <p className="text-sm mt-1">Use the video player to scrub and export individual frames</p>
                 </div>
               )
             ) : activeTool === "png-convert" ? (

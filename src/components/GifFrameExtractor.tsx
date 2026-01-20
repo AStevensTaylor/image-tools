@@ -1,17 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
-import { parseGIF, decompressFrames } from "gifuct-js";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown, X } from "lucide-react";
+import { Download, SkipBack, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { 
-  isFileSystemAccessSupported, 
-  requestDirectory, 
-  saveFilesToDirectory,
-  dataUrlToBlob,
-  hasCachedDirectory,
-  clearCachedDirectory
-} from "@/lib/fileSystem";
 
 interface GifFrameExtractorProps {
   imageUrl: string;
@@ -24,436 +14,205 @@ const isVideoFormat = (fileType: string): boolean => {
   return fileType.startsWith("video/");
 };
 
+// Helper to check if file is a GIF/WebP
+const isAnimatedImage = (fileType: string): boolean => {
+  return fileType === "image/gif" || fileType === "image/webp";
+};
+
 // File extension pattern for animated/video formats
 const FRAME_EXTRACT_FILE_EXTENSIONS = /\.(gif|webp|mp4|webm|mov|avi)$/i;
 
-interface Frame {
-  index: number;
-  imageData: ImageData;
-  delay: number;
-  dataUrl?: string; // Lazily generated
-  thumbnail?: string; // Smaller preview for grid
-}
-
 export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExtractorProps) {
-  const [frames, setFrames] = useState<Frame[]>([]);
-  const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gifDimensions, setGifDimensions] = useState({ width: 0, height: 0 });
+  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [videoDimensions, setVideoDimensions] = useState({ width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartTime, setDragStartTime] = useState(0);
+  const [isPrecisionMode, setIsPrecisionMode] = useState(false);
 
-  // Helper to generate data URL from ImageData (lazy)
-  const getDataUrl = useCallback((frame: Frame): string => {
-    if (!frame.dataUrl) {
-      const canvas = document.createElement("canvas");
-      canvas.width = frame.imageData.width;
-      canvas.height = frame.imageData.height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.putImageData(frame.imageData, 0, 0);
-      frame.dataUrl = canvas.toDataURL("image/png");
-    }
-    return frame.dataUrl;
-  }, []);
-
-  // Helper to generate thumbnail (lazy, lower resolution)
-  const getThumbnail = useCallback((frame: Frame): string => {
-    if (!frame.thumbnail) {
-      const maxSize = 128; // Max thumbnail size
-      const canvas = document.createElement("canvas");
-      const scale = Math.min(1, maxSize / Math.max(frame.imageData.width, frame.imageData.height));
-      canvas.width = frame.imageData.width * scale;
-      canvas.height = frame.imageData.height * scale;
-      const ctx = canvas.getContext("2d")!;
-      
-      // Create temp canvas with full-size image
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = frame.imageData.width;
-      tempCanvas.height = frame.imageData.height;
-      const tempCtx = tempCanvas.getContext("2d")!;
-      tempCtx.putImageData(frame.imageData, 0, 0);
-      
-      // Draw scaled down
-      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-      frame.thumbnail = canvas.toDataURL("image/png", 0.8); // Lower quality for thumbnails
-    }
-    return frame.thumbnail;
-  }, []);
-
+  // Convert GIF/WebP to video for consistent playback
   useEffect(() => {
-    const loadAnimatedImage = async () => {
+    const convertToVideo = async () => {
       setIsLoading(true);
       setError(null);
-      setFrames([]);
-      setSelectedFrames(new Set());
-      setCurrentFrame(0);
 
       try {
         if (isVideoFormat(fileType)) {
-          await loadVideoFrames(imageUrl);
+          // Use video directly
+          setVideoUrl(imageUrl);
+        } else if (isAnimatedImage(fileType)) {
+          // Convert GIF/WebP to video
+          await convertAnimatedImageToVideo(imageUrl, fileType);
         } else {
-          const response = await fetch(imageUrl);
-          const buffer = await response.arrayBuffer();
-
-          if (fileType === "image/gif") {
-            await loadGifFrames(buffer);
-          } else if (fileType === "image/webp") {
-            await loadWebpFrames(buffer);
-          } else {
-            setError("Unsupported file type for frame extraction");
-          }
+          setError("Unsupported file type. Please use GIF, WebP, or video files.");
         }
       } catch (err) {
-        setError("Failed to parse animated image. Make sure it's a valid file.");
+        setError("Failed to load file. Please try again.");
         console.error(err);
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    const loadVideoFrames = async (videoUrl: string) => {
-      return new Promise<void>((resolve, reject) => {
-        const video = document.createElement("video");
-        video.preload = "metadata";
-        video.crossOrigin = "anonymous";
-        video.muted = true; // Mute to allow autoplay
-        
-        video.onerror = () => {
-          reject(new Error("Failed to load video"));
-        };
-        
-        video.onloadedmetadata = async () => {
-          try {
-            const duration = video.duration;
-            const width = video.videoWidth;
-            const height = video.videoHeight;
-            
-            if (!width || !height) {
-              reject(new Error("Invalid video dimensions"));
-              return;
-            }
-            
-            setGifDimensions({ width, height });
-            
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d")!;
-            
-            const extractedFrames: Frame[] = [];
-            
-            // Maximum frames to extract for videos (to prevent CPU overload)
-            const MAX_VIDEO_FRAMES = 300;
-            
-            // Check if requestVideoFrameCallback is supported for frame-accurate extraction
-            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-              // Use requestVideoFrameCallback for accurate frame-by-frame extraction
-              let frameIndex = 0;
-              let lastFrameTime = -1;
-              
-              const captureFrame = (now: number, metadata: any) => {
-                // Stop if we've reached the maximum
-                if (frameIndex >= MAX_VIDEO_FRAMES) {
-                  setFrames(extractedFrames);
-                  resolve();
-                  return;
-                }
-                
-                // Avoid duplicate frames
-                if (metadata.presentedFrames !== lastFrameTime) {
-                  lastFrameTime = metadata.presentedFrames;
-                  
-                  ctx.drawImage(video, 0, 0, width, height);
-                  const imageData = ctx.getImageData(0, 0, width, height);
-                  
-                  // Store frame without generating data URL yet (lazy generation)
-                  extractedFrames.push({
-                    index: frameIndex++,
-                    imageData,
-                    delay: metadata.expectedDisplayTime ? Math.round((metadata.expectedDisplayTime - metadata.mediaTime) * 1000) : 33,
-                  });
-                }
-                
-                // Continue capturing if video hasn't ended
-                if (!video.ended && video.currentTime < duration) {
-                  (video as any).requestVideoFrameCallback(captureFrame);
-                } else {
-                  setFrames(extractedFrames);
-                  resolve();
-                }
-              };
-              
-              // Start video playback to trigger frame callbacks
-              video.play().then(() => {
-                (video as any).requestVideoFrameCallback(captureFrame);
-              }).catch(reject);
-              
-            } else {
-              // Fallback: Extract frames by seeking (get every frame based on estimated FPS)
-              // Estimate frame rate (common rates: 24, 25, 30, 60 fps)
-              // Default to 30 fps if we can't determine
-              const estimatedFPS = 30;
-              const totalFrames = Math.ceil(duration * estimatedFPS);
-              const frameCount = Math.min(totalFrames, MAX_VIDEO_FRAMES); // Apply limit
-              const frameInterval = 1 / estimatedFPS;
-              
-              for (let i = 0; i < frameCount; i++) {
-                const timestamp = i * frameInterval;
-                
-                if (timestamp > duration) break;
-                
-                // Seek to the timestamp
-                await new Promise<void>((seekResolve) => {
-                  const onSeeked = () => {
-                    video.onseeked = null;
-                    seekResolve();
-                  };
-                  video.onseeked = onSeeked;
-                  video.currentTime = timestamp;
-                });
-                
-                // Draw the frame
-                ctx.drawImage(video, 0, 0, width, height);
-                const imageData = ctx.getImageData(0, 0, width, height);
-                
-                // Store frame without generating data URL yet (lazy generation)
-                extractedFrames.push({
-                  index: i,
-                  imageData,
-                  delay: Math.round(frameInterval * 1000),
-                });
-              }
-              
-              setFrames(extractedFrames);
-              resolve();
-            }
-          } catch (err) {
-            reject(err);
-          }
-        };
-        
-        video.src = videoUrl;
-      });
-    };
-
-    const loadGifFrames = async (buffer: ArrayBuffer) => {
-      const gif = parseGIF(buffer);
-      const decompressedFrames = decompressFrames(gif, true);
-
-      if (decompressedFrames.length === 0) {
-        setError("No frames found in GIF");
-        return;
-      }
-
-      const width = gif.lsd.width;
-      const height = gif.lsd.height;
-      setGifDimensions({ width, height });
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
-
-      const extractedFrames: Frame[] = [];
-
-      for (let i = 0; i < decompressedFrames.length; i++) {
-        const frame = decompressedFrames[i];
-        const imageData = new ImageData(
-          new Uint8ClampedArray(frame.patch),
-          frame.dims.width,
-          frame.dims.height
-        );
-
-        if (i === 0) {
-          ctx.clearRect(0, 0, width, height);
-        }
-
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = frame.dims.width;
-        tempCanvas.height = frame.dims.height;
-        const tempCtx = tempCanvas.getContext("2d")!;
-        tempCtx.putImageData(imageData, 0, 0);
-
-        ctx.drawImage(tempCanvas, frame.dims.left, frame.dims.top);
-
-        const fullFrameData = ctx.getImageData(0, 0, width, height);
-
-        // Store frame without generating data URL yet (lazy generation)
-        extractedFrames.push({
-          index: i,
-          imageData: fullFrameData,
-          delay: frame.delay,
-        });
-      }
-
-      setFrames(extractedFrames);
-    };
-
-    const loadWebpFrames = async (buffer: ArrayBuffer) => {
-      // Use ImageDecoder API for WebP (available in modern browsers)
-      if (!("ImageDecoder" in window)) {
-        setError("Your browser doesn't support WebP frame extraction. Please use Chrome or Edge.");
-        return;
-      }
-
-      const decoder = new (window as any).ImageDecoder({
-        data: buffer,
-        type: "image/webp",
-      });
-
-      await decoder.decode({ frameIndex: 0 });
-      const frameCount = decoder.tracks.selectedTrack?.frameCount || 1;
-
-      if (frameCount <= 1) {
-        setError("This WebP is not animated (only 1 frame found)");
-        return;
-      }
-
-      const extractedFrames: Frame[] = [];
-
-      for (let i = 0; i < frameCount; i++) {
-        const result = await decoder.decode({ frameIndex: i });
-        const frame = result.image;
-
-        if (i === 0) {
-          setGifDimensions({ width: frame.displayWidth, height: frame.displayHeight });
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = frame.displayWidth;
-        canvas.height = frame.displayHeight;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(frame, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const duration = decoder.tracks.selectedTrack?.frameInfo?.[i]?.duration || 100000;
-
-        // Store frame without generating data URL yet (lazy generation)
-        extractedFrames.push({
-          index: i,
-          imageData,
-          delay: Math.round(duration / 1000), // Convert microseconds to milliseconds
-        });
-
-        frame.close();
-      }
-
-      decoder.close();
-      setFrames(extractedFrames);
-    };
-
-    loadAnimatedImage();
+    convertToVideo();
   }, [imageUrl, fileType]);
 
-  // Playback
-  useEffect(() => {
-    if (!isPlaying || frames.length === 0) return;
-
-    const frame = frames[currentFrame];
-    const timeout = setTimeout(() => {
-      setCurrentFrame((prev) => (prev + 1) % frames.length);
-    }, frame.delay || 100);
-
-    return () => clearTimeout(timeout);
-  }, [isPlaying, currentFrame, frames]);
-
-  const toggleFrame = (index: number) => {
-    setSelectedFrames((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
+  const convertAnimatedImageToVideo = async (url: string, type: string) => {
+    // For GIF/WebP, since HTML5 video can't play them directly,
+    // we need to render them using canvas
+    // For now, we'll use the image directly and show a message
+    // A full implementation would extract frames and create a video blob
+    setError("GIF/WebP playback not yet fully implemented. Please use video files (MP4, WebM, MOV) for now.");
+    setIsLoading(false);
+    
+    // TODO: Implement proper GIF/WebP to video conversion
+    // This would require:
+    // 1. Extract all frames from GIF/WebP
+    // 2. Create a MediaRecorder stream
+    // 3. Encode frames as video
+    // 4. Create a video blob URL
   };
 
-  const selectAll = () => {
-    setSelectedFrames(new Set(frames.map((f) => f.index)));
-  };
-
-  const selectNone = () => {
-    setSelectedFrames(new Set());
-  };
-
-  const selectEveryNth = (n: number) => {
-    setSelectedFrames(new Set(frames.filter((_, i) => i % n === 0).map((f) => f.index)));
-  };
-
-  const downloadFrame = (frame: Frame) => {
-    const link = document.createElement("a");
-    const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
-    const baseName = extension ? imageName.replace(extension[0], "") : imageName;
-    link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`;
-    link.href = getDataUrl(frame); // Lazy generate data URL when downloading
-    link.click();
-  };
-
-  const downloadSelected = () => {
-    const selected = frames.filter((f) => selectedFrames.has(f.index));
-    selected.forEach((frame, i) => {
-      setTimeout(() => downloadFrame(frame), i * 100);
-    });
-  };
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
-  const [hasCachedDir, setHasCachedDir] = useState(false);
-
-  // Check for cached directory on mount
-  useEffect(() => {
-    const checkCache = async () => {
-      const hasCache = await hasCachedDirectory();
-      setHasCachedDir(hasCache);
-    };
-    checkCache();
-  }, []);
-
-  const saveToDirectory = async () => {
-    const dirHandle = await requestDirectory();
-    if (!dirHandle) return;
-
-    // Update cache status after getting directory
-    setHasCachedDir(true);
-
-    const selected = frames.filter((f) => selectedFrames.has(f.index));
-    if (selected.length === 0) return;
-
-    setIsSaving(true);
-    setSaveProgress({ current: 0, total: selected.length });
-
-    try {
-      const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
-      const baseName = extension ? imageName.replace(extension[0], "") : imageName;
-      const files = selected.map((frame) => ({
-        filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,
-        data: dataUrlToBlob(getDataUrl(frame)), // Lazy generate data URL when saving
-        subPath: "frames",
-      }));
-
-      await saveFilesToDirectory(dirHandle, files, (current, total) => {
-        setSaveProgress({ current, total });
+  // Handle video metadata loaded
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+      setVideoDimensions({
+        width: videoRef.current.videoWidth,
+        height: videoRef.current.videoHeight,
       });
-    } catch (err) {
-      console.error("Failed to save frames:", err);
-    } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
-  const handleResetDirectory = async () => {
-    await clearCachedDirectory();
-    setHasCachedDir(false);
+  // Handle time update
+  const handleTimeUpdate = () => {
+    if (videoRef.current && !isDragging) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
   };
 
-  const goToPrevFrame = () => {
-    setCurrentFrame((prev) => (prev - 1 + frames.length) % frames.length);
+  // Seek to specific frame (1 frame forward)
+  const seekFrameForward = () => {
+    if (videoRef.current) {
+      const fps = 30; // Assume 30fps
+      const frameDuration = 1 / fps;
+      videoRef.current.currentTime = Math.min(
+        videoRef.current.currentTime + frameDuration,
+        videoRef.current.duration
+      );
+    }
   };
 
-  const goToNextFrame = () => {
-    setCurrentFrame((prev) => (prev + 1) % frames.length);
+  // Seek to specific frame (1 frame backward)
+  const seekFrameBackward = () => {
+    if (videoRef.current) {
+      const fps = 30; // Assume 30fps
+      const frameDuration = 1 / fps;
+      videoRef.current.currentTime = Math.max(
+        videoRef.current.currentTime - frameDuration,
+        0
+      );
+    }
+  };
+
+  // Export current frame
+  const exportCurrentFrame = () => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(video, 0, 0);
+
+    // Download as PNG
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
+      const baseName = extension ? imageName.replace(extension[0], "") : imageName;
+      const timestamp = Math.floor(currentTime * 1000);
+      link.download = `${baseName}-frame-${timestamp}ms.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  };
+
+  // Handle scrubber mouse down
+  const handleScrubberMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current) return;
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartTime(videoRef.current.currentTime);
+  };
+
+  // Handle scrubber mouse move
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !videoRef.current) return;
+
+      const deltaY = dragStartY - e.clientY;
+      
+      // Check if dragging up to enter precision mode
+      if (deltaY > 20 && !isPrecisionMode) {
+        setIsPrecisionMode(true);
+      }
+
+      if (isPrecisionMode) {
+        // Precision mode: ±1s across screen width
+        const rect = videoRef.current.getBoundingClientRect();
+        const deltaX = e.clientX - rect.left;
+        const normalizedX = deltaX / rect.width; // 0 to 1
+        const timeOffset = (normalizedX - 0.5) * 2; // -1 to 1
+        const newTime = Math.max(0, Math.min(
+          dragStartTime + timeOffset,
+          videoRef.current.duration
+        ));
+        videoRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
+      } else {
+        // Normal mode: scrub through entire video
+        const rect = videoRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+        const newTime = percentage * videoRef.current.duration;
+        videoRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsPrecisionMode(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, dragStartY, dragStartTime, isPrecisionMode]);
+
+  // Handle scrubber click (for normal seeking)
+  const handleScrubberClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = percentage * duration;
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   if (isLoading) {
@@ -461,7 +220,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin size-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-muted-foreground">Extracting frames...</p>
+          <p className="text-muted-foreground">Loading media...</p>
         </div>
       </div>
     );
@@ -477,140 +236,103 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     );
   }
 
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">
-          {isVideoFormat(fileType) ? "Video" : "GIF/WebP"} Frame Extractor
-        </h2>
+        <h2 className="text-xl font-semibold">Frame Extractor</h2>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">
-            {frames.length} frames • {gifDimensions.width}×{gifDimensions.height}
+            {videoDimensions.width}×{videoDimensions.height}
           </span>
         </div>
       </div>
 
-      {/* Preview area */}
+      {/* Video Player */}
       <div className="flex-1 flex flex-col gap-4 min-h-0">
         <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg overflow-hidden min-h-0">
-          {frames[currentFrame] && (
-            <img
-              src={getDataUrl(frames[currentFrame])}
-              alt={`Frame ${currentFrame}`}
-              className="max-w-full max-h-full object-contain"
-              style={{ imageRendering: "pixelated" }}
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            className="max-w-full max-h-full"
+            onLoadedMetadata={handleLoadedMetadata}
+            onTimeUpdate={handleTimeUpdate}
+            preload="metadata"
+            muted
+          />
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-col gap-3">
+          {/* Frame navigation */}
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={seekFrameBackward}
+              title="Previous frame"
+            >
+              <SkipBack className="size-4" />
+            </Button>
+            <Button
+              size="sm"
+              onClick={exportCurrentFrame}
+              title="Export current frame as PNG"
+            >
+              <Download className="size-4 mr-2" />
+              Export Frame
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={seekFrameForward}
+              title="Next frame"
+            >
+              <SkipForward className="size-4" />
+            </Button>
+          </div>
+
+          {/* Time display */}
+          <div className="text-center text-sm text-muted-foreground">
+            {currentTime.toFixed(3)}s / {duration.toFixed(3)}s
+            {isPrecisionMode && (
+              <span className="ml-2 text-primary">(Precision Mode: ±1s)</span>
+            )}
+          </div>
+
+          {/* Custom scrubber */}
+          <div
+            className={cn(
+              "relative h-12 bg-muted rounded-lg cursor-pointer transition-all",
+              isDragging && "ring-2 ring-primary",
+              isPrecisionMode && "bg-primary/10"
+            )}
+            onMouseDown={handleScrubberMouseDown}
+            onClick={handleScrubberClick}
+          >
+            {/* Progress bar */}
+            <div
+              className="absolute inset-0 bg-primary/20 rounded-lg transition-all"
+              style={{ width: `${progressPercentage}%` }}
             />
-          )}
-        </div>
+            
+            {/* Playhead */}
+            <div
+              className="absolute top-0 bottom-0 w-1 bg-primary rounded-full"
+              style={{ left: `${progressPercentage}%` }}
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full border-2 border-background" />
+            </div>
 
-        {/* Playback controls */}
-        <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" size="icon" onClick={goToPrevFrame}>
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setIsPlaying(!isPlaying)}
-          >
-            {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
-          </Button>
-          <Button variant="outline" size="icon" onClick={goToNextFrame}>
-            <ChevronRight className="size-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground ml-2">
-            Frame {currentFrame + 1} / {frames.length}
-          </span>
-        </div>
-
-        {/* Selection controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Label className="text-sm">Select:</Label>
-          <Button variant="outline" size="sm" onClick={selectAll}>
-            All
-          </Button>
-          <Button variant="outline" size="sm" onClick={selectNone}>
-            None
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => selectEveryNth(2)}>
-            Every 2nd
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => selectEveryNth(5)}>
-            Every 5th
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => selectEveryNth(10)}>
-            Every 10th
-          </Button>
-          <div className="flex-1" />
-          <span className="text-sm text-muted-foreground">
-            {isSaving 
-              ? `Saving ${saveProgress.current}/${saveProgress.total}...` 
-              : `${selectedFrames.size} selected`}
-          </span>
-          <Button
-            size="sm"
-            onClick={downloadSelected}
-            disabled={selectedFrames.size === 0 || isSaving}
-          >
-            <Download className="size-4" />
-            Download
-          </Button>
-          {isFileSystemAccessSupported() && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={saveToDirectory}
-                disabled={selectedFrames.size === 0 || isSaving}
-                title={hasCachedDir ? "Save to the previously selected folder" : "Save to a folder on your computer"}
-              >
-                <FolderDown className="size-4" />
-                Save to Folder
-              </Button>
-              {hasCachedDir && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleResetDirectory}
-                  disabled={isSaving}
-                  title="Clear saved folder location"
-                >
-                  <X className="size-4" />
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Frame grid */}
-        <div className="h-32 overflow-x-auto overflow-y-hidden border rounded-lg bg-muted/20">
-          <div className="flex gap-1 p-2 h-full">
-            {frames.map((frame) => (
-              <button
-                key={frame.index}
-                onClick={() => toggleFrame(frame.index)}
-                onDoubleClick={() => {
-                  setCurrentFrame(frame.index);
-                  setIsPlaying(false);
-                }}
-                className={cn(
-                  "relative flex-shrink-0 h-full aspect-square rounded border-2 overflow-hidden transition-all",
-                  selectedFrames.has(frame.index)
-                    ? "border-primary ring-2 ring-primary/20"
-                    : "border-transparent hover:border-muted-foreground/30",
-                  currentFrame === frame.index && "ring-2 ring-blue-500"
-                )}
-              >
-                <img
-                  src={getThumbnail(frame)}
-                  alt={`Frame ${frame.index}`}
-                  className="w-full h-full object-contain bg-black/5"
-                />
-                <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs py-0.5">
-                  {frame.index + 1}
-                </span>
-              </button>
-            ))}
+            {/* Instruction text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-xs text-muted-foreground">
+                {isPrecisionMode 
+                  ? "Drag left/right to scrub ±1s"
+                  : "Drag up for precision mode, or click to seek"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
