@@ -2,13 +2,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, FolderDown, Check } from "lucide-react";
+import { Download, FolderDown, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isFileSystemAccessSupported,
   requestDirectory,
   saveFilesToDirectory,
   dataUrlToBlob,
+  hasCachedDirectory,
+  clearCachedDirectory,
   checkFilesExist,
 } from "@/lib/fileSystem";
 
@@ -55,6 +57,7 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [hasCachedDir, setHasCachedDir] = useState(false);
   const [filenamePrefix, setFilenamePrefix] = useState(() => {
     return extractFilenamePrefix(imageName);
   });
@@ -65,6 +68,15 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
   }, [imageName]);
 
   const imageRef = useRef<HTMLImageElement>(null);
+
+  // Check for cached directory on mount
+  useEffect(() => {
+    const checkCache = async () => {
+      const hasCache = await hasCachedDirectory();
+      setHasCachedDir(hasCache);
+    };
+    checkCache();
+  }, []);
 
   const currentPreset = presets.find((p) => p.id === selectedPreset);
   const cropBox = currentPreset ? cropBoxes[currentPreset.id] : null;
@@ -289,6 +301,9 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
     const dirHandle = await requestDirectory();
     if (!dirHandle) return;
 
+    // Update cache status after getting directory
+    setHasCachedDir(true);
+
     const enabledPresets = presets.filter((p) => p.enabled && cropBoxes[p.id]);
     if (enabledPresets.length === 0) return;
 
@@ -330,6 +345,11 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleResetDirectory = async () => {
+    await clearCachedDirectory();
+    setHasCachedDir(false);
   };
 
   const enabledCount = presets.filter((p) => p.enabled).length;
@@ -397,14 +417,28 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
               Download All ({enabledCount})
             </Button>
             {isFileSystemAccessSupported() && (
-              <Button
-                variant="outline"
-                onClick={saveToDirectory}
-                disabled={enabledCount === 0 || isSaving}
-              >
-                <FolderDown className="size-4" />
-                {isSaving ? "Saving..." : "Save to Folder"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={saveToDirectory}
+                  disabled={enabledCount === 0 || isSaving}
+                  className="flex-1"
+                  title={hasCachedDir ? "Save to the previously selected folder" : "Save to a folder on your computer"}
+                >
+                  <FolderDown className="size-4" />
+                  {isSaving ? "Saving..." : "Save to Folder"}
+                </Button>
+                {hasCachedDir && (
+                  <Button
+                    variant="ghost"
+                    onClick={handleResetDirectory}
+                    disabled={isSaving}
+                    title="Clear saved folder location"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>

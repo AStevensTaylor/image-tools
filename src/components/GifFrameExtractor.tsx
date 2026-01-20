@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { parseGIF, decompressFrames } from "gifuct-js";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown } from "lucide-react";
+import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
   isFileSystemAccessSupported, 
   requestDirectory, 
   saveFilesToDirectory,
-  dataUrlToBlob 
+  dataUrlToBlob,
+  hasCachedDirectory,
+  clearCachedDirectory
 } from "@/lib/fileSystem";
 
 interface GifFrameExtractorProps {
@@ -227,10 +229,23 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
+  const [hasCachedDir, setHasCachedDir] = useState(false);
+
+  // Check for cached directory on mount
+  useEffect(() => {
+    const checkCache = async () => {
+      const hasCache = await hasCachedDirectory();
+      setHasCachedDir(hasCache);
+    };
+    checkCache();
+  }, []);
 
   const saveToDirectory = async () => {
     const dirHandle = await requestDirectory();
     if (!dirHandle) return;
+
+    // Update cache status after getting directory
+    setHasCachedDir(true);
 
     const selected = frames.filter((f) => selectedFrames.has(f.index));
     if (selected.length === 0) return;
@@ -254,6 +269,11 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleResetDirectory = async () => {
+    await clearCachedDirectory();
+    setHasCachedDir(false);
   };
 
   const goToPrevFrame = () => {
@@ -362,16 +382,29 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             Download
           </Button>
           {isFileSystemAccessSupported() && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={saveToDirectory}
-              disabled={selectedFrames.size === 0 || isSaving}
-              title="Save to a folder on your computer"
-            >
-              <FolderDown className="size-4" />
-              Save to Folder
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={saveToDirectory}
+                disabled={selectedFrames.size === 0 || isSaving}
+                title={hasCachedDir ? "Save to the previously selected folder" : "Save to a folder on your computer"}
+              >
+                <FolderDown className="size-4" />
+                Save to Folder
+              </Button>
+              {hasCachedDir && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleResetDirectory}
+                  disabled={isSaving}
+                  title="Clear saved folder location"
+                >
+                  <X className="size-4" />
+                </Button>
+              )}
+            </>
           )}
         </div>
 
