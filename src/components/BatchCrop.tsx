@@ -217,15 +217,20 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
     const scaleX = naturalSize.width / imageSize.width;
     const scaleY = naturalSize.height / imageSize.height;
 
+    // Output canvas at exact preset dimensions
     const canvas = document.createElement("canvas");
     canvas.width = preset.width;
     canvas.height = preset.height;
 
     const ctx = canvas.getContext("2d")!;
     
-    // Fill with white background (no alpha)
+    // Fill with white background (no alpha for Google Play)
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Enable high-quality image scaling
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -235,16 +240,17 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
       img.onload = resolve;
     });
 
+    // Draw cropped region scaled to fill the output canvas
     ctx.drawImage(
       img,
-      box.x * scaleX,
-      box.y * scaleY,
-      box.width * scaleX,
-      box.height * scaleY,
-      0,
-      0,
-      canvas.width,
-      canvas.height
+      box.x * scaleX,        // source x
+      box.y * scaleY,        // source y
+      box.width * scaleX,    // source width
+      box.height * scaleY,   // source height
+      0,                     // dest x
+      0,                     // dest y
+      preset.width,          // dest width (scales to exact dimensions)
+      preset.height          // dest height (scales to exact dimensions)
     );
 
     return new Promise((resolve) => {
