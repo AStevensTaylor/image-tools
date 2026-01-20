@@ -77,6 +77,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
         const video = document.createElement("video");
         video.preload = "metadata";
         video.crossOrigin = "anonymous";
+        video.muted = true; // Mute to allow autoplay
         
         video.onerror = () => {
           reject(new Error("Failed to load video"));
@@ -95,11 +96,6 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             
             setGifDimensions({ width, height });
             
-            // Extract frames at regular intervals (aim for ~100 frames max, or 1 per second)
-            const fps = 1; // frames per second to extract
-            const frameCount = Math.min(Math.ceil(duration * fps), 100);
-            const interval = duration / frameCount;
-            
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
@@ -107,33 +103,80 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             
             const extractedFrames: Frame[] = [];
             
-            for (let i = 0; i < frameCount; i++) {
-              const timestamp = i * interval;
+            // Check if requestVideoFrameCallback is supported for frame-accurate extraction
+            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+              // Use requestVideoFrameCallback for accurate frame-by-frame extraction
+              let frameIndex = 0;
+              let lastFrameTime = -1;
               
-              // Seek to the timestamp
-              await new Promise<void>((seekResolve) => {
-                const onSeeked = () => {
-                  video.onseeked = null; // Clean up event listener
-                  seekResolve();
-                };
-                video.onseeked = onSeeked;
-                video.currentTime = timestamp;
-              });
+              const captureFrame = (now: number, metadata: any) => {
+                // Avoid duplicate frames
+                if (metadata.presentedFrames !== lastFrameTime) {
+                  lastFrameTime = metadata.presentedFrames;
+                  
+                  ctx.drawImage(video, 0, 0, width, height);
+                  const imageData = ctx.getImageData(0, 0, width, height);
+                  
+                  extractedFrames.push({
+                    index: frameIndex++,
+                    imageData,
+                    delay: metadata.expectedDisplayTime ? Math.round((metadata.expectedDisplayTime - metadata.mediaTime) * 1000) : 33,
+                    dataUrl: canvas.toDataURL("image/png"),
+                  });
+                }
+                
+                // Continue capturing if video hasn't ended
+                if (!video.ended && video.currentTime < duration) {
+                  (video as any).requestVideoFrameCallback(captureFrame);
+                } else {
+                  setFrames(extractedFrames);
+                  resolve();
+                }
+              };
               
-              // Draw the frame
-              ctx.drawImage(video, 0, 0, width, height);
-              const imageData = ctx.getImageData(0, 0, width, height);
+              // Start video playback to trigger frame callbacks
+              video.play().then(() => {
+                (video as any).requestVideoFrameCallback(captureFrame);
+              }).catch(reject);
               
-              extractedFrames.push({
-                index: i,
-                imageData,
-                delay: Math.round(interval * 1000), // Convert to milliseconds
-                dataUrl: canvas.toDataURL("image/png"),
-              });
+            } else {
+              // Fallback: Extract frames by seeking (get every frame based on estimated FPS)
+              // Estimate frame rate (common rates: 24, 25, 30, 60 fps)
+              // Default to 30 fps if we can't determine
+              const estimatedFPS = 30;
+              const frameCount = Math.ceil(duration * estimatedFPS);
+              const frameInterval = 1 / estimatedFPS;
+              
+              for (let i = 0; i < frameCount; i++) {
+                const timestamp = i * frameInterval;
+                
+                if (timestamp > duration) break;
+                
+                // Seek to the timestamp
+                await new Promise<void>((seekResolve) => {
+                  const onSeeked = () => {
+                    video.onseeked = null;
+                    seekResolve();
+                  };
+                  video.onseeked = onSeeked;
+                  video.currentTime = timestamp;
+                });
+                
+                // Draw the frame
+                ctx.drawImage(video, 0, 0, width, height);
+                const imageData = ctx.getImageData(0, 0, width, height);
+                
+                extractedFrames.push({
+                  index: i,
+                  imageData,
+                  delay: Math.round(frameInterval * 1000),
+                  dataUrl: canvas.toDataURL("image/png"),
+                });
+              }
+              
+              setFrames(extractedFrames);
+              resolve();
             }
-            
-            setFrames(extractedFrames);
-            resolve();
           } catch (err) {
             reject(err);
           }
