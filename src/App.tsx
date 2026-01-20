@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ImageGallery } from "./components/ImageGallery";
 import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
 import { BatchCrop } from "./components/BatchCrop";
 import { Button } from "./components/ui/button";
-import { Crop, Film, Image as ImageIcon, FileImage, Layers } from "lucide-react";
+import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "./lib/utils";
 import "./index.css";
 
@@ -29,9 +29,38 @@ export function App() {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("crop");
   const [isGalleryCollapsed, setIsGalleryCollapsed] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const toolsContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedImage = images.find((img) => img.id === selectedImageId);
   const isAnimatedFormat = selectedImage?.file.type === "image/gif" || selectedImage?.file.type === "image/webp";
+
+  const updateScrollButtons = useCallback(() => {
+    const container = toolsContainerRef.current;
+    if (!container) return;
+
+    const hasOverflow = container.scrollWidth > container.clientWidth;
+    setCanScrollLeft(hasOverflow && container.scrollLeft > 0);
+    setCanScrollRight(hasOverflow && container.scrollLeft < container.scrollWidth - container.clientWidth);
+  }, []);
+
+  useEffect(() => {
+    updateScrollButtons();
+    window.addEventListener('resize', updateScrollButtons);
+    return () => window.removeEventListener('resize', updateScrollButtons);
+  }, [updateScrollButtons]);
+
+  const scroll = useCallback((direction: 'left' | 'right') => {
+    const container = toolsContainerRef.current;
+    if (!container) return;
+
+    const scrollAmount = 200;
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  }, []);
 
   const handleImagesAdd = useCallback((files: FileList) => {
     const newImages: ImageItem[] = Array.from(files)
@@ -103,25 +132,57 @@ export function App() {
         }}
       >
         {/* Tool selector */}
-        <div className="flex gap-2 p-4 border-b border-border bg-card">
-          {tools.map((tool) => {
-            const Icon = tool.icon;
-            const isDisabled = tool.requiresAnimated && selectedImage && !isAnimatedFormat;
-            return (
-              <Button
-                key={tool.id}
-                variant={activeTool === tool.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTool(tool.id)}
-                disabled={isDisabled}
-                className={cn(isDisabled && "opacity-50")}
-                title={tool.description}
-              >
-                <Icon className="size-4" />
-                {tool.label}
-              </Button>
-            );
-          })}
+        <div className="relative flex items-center border-b border-border bg-card">
+          {/* Left scroll button */}
+          {canScrollLeft && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-0 z-10 h-full rounded-none bg-gradient-to-r from-card to-transparent px-2"
+              onClick={() => scroll('left')}
+            >
+              <ChevronLeft className="size-5" />
+            </Button>
+          )}
+
+          {/* Scrollable tools container */}
+          <div
+            ref={toolsContainerRef}
+            className="flex gap-2 p-4 overflow-x-auto scrollbar-hide"
+            onScroll={updateScrollButtons}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {tools.map((tool) => {
+              const Icon = tool.icon;
+              const isDisabled = tool.requiresAnimated && selectedImage && !isAnimatedFormat;
+              return (
+                <Button
+                  key={tool.id}
+                  variant={activeTool === tool.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveTool(tool.id)}
+                  disabled={isDisabled}
+                  className={cn("whitespace-nowrap", isDisabled && "opacity-50")}
+                  title={tool.description}
+                >
+                  <Icon className="size-4" />
+                  {tool.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* Right scroll button */}
+          {canScrollRight && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 z-10 h-full rounded-none bg-gradient-to-l from-card to-transparent px-2"
+              onClick={() => scroll('right')}
+            >
+              <ChevronRight className="size-5" />
+            </Button>
+          )}
         </div>
 
         {/* Tool content */}
