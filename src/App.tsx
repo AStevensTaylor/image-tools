@@ -24,6 +24,8 @@ const tools: { id: Tool; label: string; icon: typeof Crop; description: string; 
   { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
 ];
 
+const SCROLL_AMOUNT = 200;
+
 export function App() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -55,9 +57,8 @@ export function App() {
     const container = toolsContainerRef.current;
     if (!container) return;
 
-    const scrollAmount = 200;
     container.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      left: direction === 'left' ? -SCROLL_AMOUNT : SCROLL_AMOUNT,
       behavior: 'smooth'
     });
   }, []);
@@ -150,7 +151,6 @@ export function App() {
             ref={toolsContainerRef}
             className="flex gap-2 p-4 overflow-x-auto scrollbar-hide"
             onScroll={updateScrollButtons}
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {tools.map((tool) => {
               const Icon = tool.icon;
