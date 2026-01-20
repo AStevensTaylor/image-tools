@@ -35,3 +35,16 @@ bun start
 - **UI Components**: Radix UI + shadcn/ui
 - **Styling**: Tailwind CSS
 - **Image Processing**: Canvas API, gifuct-js
+
+## Development Tools
+
+### MCP Server Integration
+
+This project includes a Model Context Protocol (MCP) server configuration for enhanced development workflows with GitHub Copilot and other MCP-compatible tools.
+
+The configured server provides tools to:
+- List and manage Cloudflare Workers builds
+- Get build details and logs
+- Track deployment status
+
+Configuration is available in `.copilot/mcp-config.json`. When using GitHub Copilot or other MCP clients, the Cloudflare Workers Builds server will be automatically available after authentication.
