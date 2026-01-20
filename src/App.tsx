@@ -4,12 +4,13 @@ import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { BatchCrop } from "./components/BatchCrop";
 import { Button } from "./components/ui/button";
-import { Crop, Film, Image as ImageIcon, FileImage } from "lucide-react";
+import { Crop, Film, Image as ImageIcon, FileImage, Layers } from "lucide-react";
 import { cn } from "./lib/utils";
 import "./index.css";
 
-type Tool = "crop" | "gif-frames" | "png-convert";
+type Tool = "crop" | "gif-frames" | "png-convert" | "batch-crop";
 
 interface ImageItem {
   id: string;
@@ -19,6 +20,7 @@ interface ImageItem {
 
 const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean }[] = [
   { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio" },
+  { id: "batch-crop", label: "Batch Crop", icon: Layers, description: "Generate multiple crops for app stores" },
   { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP", requiresAnimated: true },
   { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
 ];
@@ -149,6 +151,11 @@ export function App() {
               )
             ) : activeTool === "png-convert" ? (
               <PngConverter
+                imageUrl={selectedImage.url}
+                imageName={selectedImage.file.name}
+              />
+            ) : activeTool === "batch-crop" ? (
+              <BatchCrop
                 imageUrl={selectedImage.url}
                 imageName={selectedImage.file.name}
               />
