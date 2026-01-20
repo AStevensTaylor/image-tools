@@ -31,7 +31,8 @@ interface Frame {
   index: number;
   imageData: ImageData;
   delay: number;
-  dataUrl: string;
+  dataUrl?: string; // Lazily generated
+  thumbnail?: string; // Smaller preview for grid
 }
 
 export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExtractorProps) {
@@ -42,6 +43,43 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gifDimensions, setGifDimensions] = useState({ width: 0, height: 0 });
+
+  // Helper to generate data URL from ImageData (lazy)
+  const getDataUrl = useCallback((frame: Frame): string => {
+    if (!frame.dataUrl) {
+      const canvas = document.createElement("canvas");
+      canvas.width = frame.imageData.width;
+      canvas.height = frame.imageData.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.putImageData(frame.imageData, 0, 0);
+      frame.dataUrl = canvas.toDataURL("image/png");
+    }
+    return frame.dataUrl;
+  }, []);
+
+  // Helper to generate thumbnail (lazy, lower resolution)
+  const getThumbnail = useCallback((frame: Frame): string => {
+    if (!frame.thumbnail) {
+      const maxSize = 128; // Max thumbnail size
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, maxSize / Math.max(frame.imageData.width, frame.imageData.height));
+      canvas.width = frame.imageData.width * scale;
+      canvas.height = frame.imageData.height * scale;
+      const ctx = canvas.getContext("2d")!;
+      
+      // Create temp canvas with full-size image
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = frame.imageData.width;
+      tempCanvas.height = frame.imageData.height;
+      const tempCtx = tempCanvas.getContext("2d")!;
+      tempCtx.putImageData(frame.imageData, 0, 0);
+      
+      // Draw scaled down
+      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+      frame.thumbnail = canvas.toDataURL("image/png", 0.8); // Lower quality for thumbnails
+    }
+    return frame.thumbnail;
+  }, []);
 
   useEffect(() => {
     const loadAnimatedImage = async () => {
@@ -105,6 +143,9 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             
             const extractedFrames: Frame[] = [];
             
+            // Maximum frames to extract for videos (to prevent CPU overload)
+            const MAX_VIDEO_FRAMES = 300;
+            
             // Check if requestVideoFrameCallback is supported for frame-accurate extraction
             if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
               // Use requestVideoFrameCallback for accurate frame-by-frame extraction
@@ -112,6 +153,13 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
               let lastFrameTime = -1;
               
               const captureFrame = (now: number, metadata: any) => {
+                // Stop if we've reached the maximum
+                if (frameIndex >= MAX_VIDEO_FRAMES) {
+                  setFrames(extractedFrames);
+                  resolve();
+                  return;
+                }
+                
                 // Avoid duplicate frames
                 if (metadata.presentedFrames !== lastFrameTime) {
                   lastFrameTime = metadata.presentedFrames;
@@ -119,11 +167,11 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
                   ctx.drawImage(video, 0, 0, width, height);
                   const imageData = ctx.getImageData(0, 0, width, height);
                   
+                  // Store frame without generating data URL yet (lazy generation)
                   extractedFrames.push({
                     index: frameIndex++,
                     imageData,
                     delay: metadata.expectedDisplayTime ? Math.round((metadata.expectedDisplayTime - metadata.mediaTime) * 1000) : 33,
-                    dataUrl: canvas.toDataURL("image/png"),
                   });
                 }
                 
@@ -146,7 +194,8 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
               // Estimate frame rate (common rates: 24, 25, 30, 60 fps)
               // Default to 30 fps if we can't determine
               const estimatedFPS = 30;
-              const frameCount = Math.ceil(duration * estimatedFPS);
+              const totalFrames = Math.ceil(duration * estimatedFPS);
+              const frameCount = Math.min(totalFrames, MAX_VIDEO_FRAMES); // Apply limit
               const frameInterval = 1 / estimatedFPS;
               
               for (let i = 0; i < frameCount; i++) {
@@ -168,11 +217,11 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
                 ctx.drawImage(video, 0, 0, width, height);
                 const imageData = ctx.getImageData(0, 0, width, height);
                 
+                // Store frame without generating data URL yet (lazy generation)
                 extractedFrames.push({
                   index: i,
                   imageData,
                   delay: Math.round(frameInterval * 1000),
-                  dataUrl: canvas.toDataURL("image/png"),
                 });
               }
               
@@ -229,17 +278,12 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
         ctx.drawImage(tempCanvas, frame.dims.left, frame.dims.top);
 
         const fullFrameData = ctx.getImageData(0, 0, width, height);
-        const frameCanvas = document.createElement("canvas");
-        frameCanvas.width = width;
-        frameCanvas.height = height;
-        const frameCtx = frameCanvas.getContext("2d")!;
-        frameCtx.putImageData(fullFrameData, 0, 0);
 
+        // Store frame without generating data URL yet (lazy generation)
         extractedFrames.push({
           index: i,
           imageData: fullFrameData,
           delay: frame.delay,
-          dataUrl: frameCanvas.toDataURL("image/png"),
         });
       }
 
@@ -285,11 +329,11 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const duration = decoder.tracks.selectedTrack?.frameInfo?.[i]?.duration || 100000;
 
+        // Store frame without generating data URL yet (lazy generation)
         extractedFrames.push({
           index: i,
           imageData,
           delay: Math.round(duration / 1000), // Convert microseconds to milliseconds
-          dataUrl: canvas.toDataURL("image/png"),
         });
 
         frame.close();
@@ -343,7 +387,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     const extension = imageName.match(FRAME_EXTRACT_FILE_EXTENSIONS);
     const baseName = extension ? imageName.replace(extension[0], "") : imageName;
     link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`;
-    link.href = frame.dataUrl;
+    link.href = getDataUrl(frame); // Lazy generate data URL when downloading
     link.click();
   };
 
@@ -385,7 +429,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
       const baseName = extension ? imageName.replace(extension[0], "") : imageName;
       const files = selected.map((frame) => ({
         filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.png`,
-        data: dataUrlToBlob(frame.dataUrl),
+        data: dataUrlToBlob(getDataUrl(frame)), // Lazy generate data URL when saving
         subPath: "frames",
       }));
 
@@ -451,7 +495,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
         <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg overflow-hidden min-h-0">
           {frames[currentFrame] && (
             <img
-              src={frames[currentFrame].dataUrl}
+              src={getDataUrl(frames[currentFrame])}
               alt={`Frame ${currentFrame}`}
               className="max-w-full max-h-full object-contain"
               style={{ imageRendering: "pixelated" }}
@@ -558,7 +602,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
                 )}
               >
                 <img
-                  src={frame.dataUrl}
+                  src={getThumbnail(frame)}
                   alt={`Frame ${frame.index}`}
                   className="w-full h-full object-contain bg-black/5"
                 />
