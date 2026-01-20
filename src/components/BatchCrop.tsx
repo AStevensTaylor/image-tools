@@ -40,6 +40,11 @@ const defaultPresets: CropPreset[] = [
   { id: "feature", name: "Feature Graphic", width: 1024, height: 500, filename: "feature", enabled: true },
 ];
 
+// Helper function to extract filename without extension
+const extractFilenamePrefix = (filename: string): string => {
+  return filename.replace(/\.[^.]+$/, "");
+};
+
 export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
   const [presets, setPresets] = useState<CropPreset[]>(defaultPresets);
   const [selectedPreset, setSelectedPreset] = useState<string>("phone");
@@ -51,13 +56,12 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isSaving, setIsSaving] = useState(false);
   const [filenamePrefix, setFilenamePrefix] = useState(() => {
-    return imageName.replace(/\.[^.]+$/, "");
+    return extractFilenamePrefix(imageName);
   });
 
   // Update filename prefix when image changes
   useEffect(() => {
-    const newPrefix = imageName.replace(/\.[^.]+$/, "");
-    setFilenamePrefix(newPrefix);
+    setFilenamePrefix(extractFilenamePrefix(imageName));
   }, [imageName]);
 
   const imageRef = useRef<HTMLImageElement>(null);

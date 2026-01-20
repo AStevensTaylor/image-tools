@@ -65,7 +65,10 @@ export async function checkFilesExist(
       await dirHandle.getFileHandle(filename, { create: false });
       existingFiles.push(filename);
     } catch (err) {
-      // File doesn't exist, which is fine
+      // File doesn't exist (NotFoundError), which is expected
+      if ((err as Error).name !== "NotFoundError" && (err as Error).name !== "TypeMismatchError") {
+        console.warn(`Unexpected error checking file ${filename}:`, err);
+      }
     }
   }
   
