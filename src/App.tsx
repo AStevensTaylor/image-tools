@@ -96,7 +96,7 @@ export function App() {
     if (selectedImageId === id) {
       setSelectedImageId((prev) => {
         const remaining = images.filter((img) => img.id !== id);
-        return remaining.length > 0 ? remaining[0].id : null;
+        return remaining.length > 0 && remaining[0] ? remaining[0].id : null;
       });
     }
   }, [selectedImageId, images]);

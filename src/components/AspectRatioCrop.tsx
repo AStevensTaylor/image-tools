@@ -139,6 +139,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     if (!imageRef.current || e.touches.length === 0) return { x: 0, y: 0 };
     const rect = imageRef.current.getBoundingClientRect();
     const touch = e.touches[0];
+    if (!touch) return { x: 0, y: 0 };
     return {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,
