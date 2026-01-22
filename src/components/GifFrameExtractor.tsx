@@ -45,14 +45,17 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
         if (isVideoFormat(fileType)) {
           // Use video directly
           setVideoUrl(imageUrl);
+          // Note: isLoading will be set to false in handleLoadedMetadata
         } else if (isAnimatedImage(fileType)) {
           // Convert GIF/WebP to video
           await convertAnimatedImageToVideo(imageUrl, fileType);
         } else {
-          setError("Unsupported file type. Please use GIF, WebP, or video files.");
+          setError("Unsupported file type. Please use video files (MP4, WebM, MOV).");
+          setIsLoading(false);
         }
       } catch (err) {
         setError("Failed to load file. Please try again.");
+        setIsLoading(false);
         console.error(err);
       }
     };
@@ -86,6 +89,12 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
       });
       setIsLoading(false);
     }
+  };
+
+  // Handle video error
+  const handleVideoError = () => {
+    setError("Failed to load video. Please check the file format and try again.");
+    setIsLoading(false);
   };
 
   // Handle time update
@@ -258,6 +267,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             className="max-w-full max-h-full"
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
+            onError={handleVideoError}
             preload="metadata"
             muted
           />
