@@ -1,3 +1,19 @@
+type PermissionMode = "read" | "readwrite";
+
+type PermissionDescriptor = {
+  mode?: PermissionMode;
+};
+
+type DirectoryPicker = (options?: {
+  mode?: PermissionMode;
+  startIn?: FileSystemHandle | "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+}) => Promise<FileSystemDirectoryHandle>;
+
+type PermissionCapableDirectoryHandle = FileSystemDirectoryHandle & {
+  queryPermission?: (descriptor?: PermissionDescriptor) => Promise<PermissionState>;
+  requestPermission?: (descriptor?: PermissionDescriptor) => Promise<PermissionState>;
+};
+
 // Check if File System Access API is supported
 export function isFileSystemAccessSupported(): boolean {
   return "showDirectoryPicker" in window;
@@ -67,19 +83,27 @@ export async function getCachedDirectory(): Promise<FileSystemDirectoryHandle | 
         }
         
         // Verify we still have permission
+        const permissionHandle = handle as PermissionCapableDirectoryHandle;
+
         try {
-          const permission = await handle.queryPermission({ mode: "readwrite" });
+          const permission = permissionHandle.queryPermission
+            ? await permissionHandle.queryPermission({ mode: "readwrite" })
+            : "granted";
+
           if (permission === "granted") {
             resolve(handle);
-          } else {
-            // Try to request permission again
-            const requestedPermission = await handle.requestPermission({ mode: "readwrite" });
+            return;
+          }
+
+          if (permissionHandle.requestPermission) {
+            const requestedPermission = await permissionHandle.requestPermission({ mode: "readwrite" });
             if (requestedPermission === "granted") {
               resolve(handle);
-            } else {
-              resolve(null);
+              return;
             }
           }
+
+          resolve(null);
         } catch (err) {
           console.error("Permission check failed:", err);
           resolve(null);
@@ -160,8 +184,13 @@ export async function requestDirectory(useCache: boolean = true): Promise<FileSy
     }
   }
 
+  const directoryPicker = (window as Window & { showDirectoryPicker?: DirectoryPicker }).showDirectoryPicker;
+  if (!directoryPicker) {
+    return null;
+  }
+
   try {
-    const handle = await (window as any).showDirectoryPicker({
+    const handle = await directoryPicker({
       mode: "readwrite",
       startIn: "downloads",
     });
@@ -236,16 +265,21 @@ export async function saveFilesToDirectory(
   files: Array<{ filename: string; data: Blob | string; subPath?: string }>,
   onProgress?: (current: number, total: number, filename: string) => void
 ): Promise<void> {
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    onProgress?.(i + 1, files.length, file.filename);
+  let index = 0;
+  for (const file of files) {
+    const current = index + 1;
+    onProgress?.(current, files.length, file.filename);
     await saveFileToDirectory(dirHandle, file.filename, file.data, file.subPath);
+    index += 1;
   }
 }
 
 // Convert data URL to Blob
 export function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
+  if (!header || !base64) {
+    throw new Error("Invalid data URL");
+  }
   const mimeMatch = header.match(/:(.*?);/);
   const mime = mimeMatch ? mimeMatch[1] : "image/png";
   const binary = atob(base64);
