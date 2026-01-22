@@ -184,8 +184,8 @@ export function App() {
               <ChevronRight className="size-5" />
             </Button>
           )}
+          <SettingsDialog />
         </div>
-        <SettingsDialog />
 
         {/* Tool content */}
         <div className="flex-1 overflow-hidden">
