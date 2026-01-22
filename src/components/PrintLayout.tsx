@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { jsPDF } from "jspdf";
 
 interface PrintLayoutProps {
   images: Array<{ id: string; url: string; file: File }>;
@@ -490,47 +491,122 @@ export function PrintLayout({ images }: PrintLayoutProps) {
   }, [pages, currentPageIndex, effectiveWidth, effectiveHeight, pageMargin]);
 
   // Download all pages as images
-  const downloadPages = useCallback(async () => {
-    const scale = MM_TO_PX * 2; // Higher resolution for print (2x)
+  // Helper to convert image URL to base64 data URL
+  const loadImageAsDataUrl = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
+  // Download as PDF
+  const downloadPdf = useCallback(async () => {
+    if (pages.length === 0) return;
+
+    const pdf = new jsPDF({
+      orientation: effectiveWidth > effectiveHeight ? "landscape" : "portrait",
+      unit: "mm",
+      format: [effectiveWidth, effectiveHeight],
+    });
 
     for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+      if (pageIdx > 0) {
+        pdf.addPage([effectiveWidth, effectiveHeight], effectiveWidth > effectiveHeight ? "landscape" : "portrait");
+      }
+
       const page = pages[pageIdx];
-      const canvas = document.createElement("canvas");
-      canvas.width = effectiveWidth * scale;
-      canvas.height = effectiveHeight * scale;
 
-      const ctx = canvas.getContext("2d")!;
+      // Draw each image
+      for (const packedImg of page.images) {
+        try {
+          const dataUrl = await loadImageAsDataUrl(packedImg.image.url);
+          const imgW = packedImg.image.width;
+          const imgH = packedImg.image.height;
 
-      // White background
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (packedImg.rotated) {
+            // For rotated images, we need to use jsPDF's rotation
+            const centerX = packedImg.x + imgH / 2;
+            const centerY = packedImg.y + imgW / 2;
+            
+            pdf.saveGraphicsState();
+            // Translate to center, rotate, then draw offset
+            const angle = 90;
+            const radians = (angle * Math.PI) / 180;
+            
+            // Calculate position for rotated image
+            const rotatedX = packedImg.x;
+            const rotatedY = packedImg.y;
+            
+            // Add image with rotation using transformation matrix
+            pdf.addImage(
+              dataUrl,
+              "PNG",
+              rotatedX + imgH,
+              rotatedY,
+              imgW,
+              imgH,
+              undefined,
+              "FAST",
+              -90
+            );
+            pdf.restoreGraphicsState();
+          } else {
+            pdf.addImage(
+              dataUrl,
+              "PNG",
+              packedImg.x,
+              packedImg.y,
+              imgW,
+              imgH
+            );
+          }
 
-      // Load and draw all images
-      await Promise.all(
-        page.images.map(
-          (packedImg) =>
-            new Promise<void>((resolve) => {
-              const img = new Image();
-              img.crossOrigin = "anonymous";
-              img.onload = () => {
-                drawPackedImage(ctx, packedImg, img, scale);
-                resolve();
-              };
-              img.onerror = () => resolve();
-              img.src = packedImg.image.url;
-            })
-        )
-      );
+          // Draw cut markers
+          const markerLen = Math.min(CUT_MARKER_LENGTH, Math.max(1, imageMargin / 2 - 0.5));
+          const gap = Math.min(0.5, markerLen / 4);
+          const x = packedImg.x;
+          const y = packedImg.y;
+          const w = packedImg.rotated ? imgH : imgW;
+          const h = packedImg.rotated ? imgW : imgH;
 
-      // Download
-      const link = document.createElement("a");
-      link.download = `print-layout-page-${pageIdx + 1}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+          if (markerLen > 0.5) {
+            pdf.setDrawColor(0);
+            pdf.setLineWidth(0.1);
 
-      await new Promise((r) => setTimeout(r, 100));
+            // Top-left corner
+            pdf.line(x - markerLen, y, x - gap, y);
+            pdf.line(x, y - markerLen, x, y - gap);
+
+            // Top-right corner
+            pdf.line(x + w + gap, y, x + w + markerLen, y);
+            pdf.line(x + w, y - markerLen, x + w, y - gap);
+
+            // Bottom-left corner
+            pdf.line(x - markerLen, y + h, x - gap, y + h);
+            pdf.line(x, y + h + gap, x, y + h + markerLen);
+
+            // Bottom-right corner
+            pdf.line(x + w + gap, y + h, x + w + markerLen, y + h);
+            pdf.line(x + w, y + h + gap, x + w, y + h + markerLen);
+          }
+        } catch (err) {
+          console.error("Failed to add image to PDF:", err);
+        }
+      }
     }
-  }, [pages, effectiveWidth, effectiveHeight]);
+
+    pdf.save("print-layout.pdf");
+  }, [pages, effectiveWidth, effectiveHeight, imageMargin]);
 
   return (
     <div className="h-full flex flex-col p-6 overflow-hidden">
@@ -702,12 +778,12 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
           {/* Download button */}
           <Button
-            onClick={downloadPages}
+            onClick={downloadPdf}
             disabled={pages.length === 0}
             className="w-full"
           >
             <Download className="size-4" />
-            Download All Pages ({pages.length})
+            Download PDF ({pages.length} {pages.length === 1 ? "page" : "pages"})
           </Button>
         </div>
 
