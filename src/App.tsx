@@ -3,6 +3,7 @@ import { ImageGallery } from "./components/ImageGallery";
 import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { BatchCrop } from "./components/BatchCrop";
 import { Button } from "./components/ui/button";
 import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight } from "lucide-react";
@@ -183,6 +184,7 @@ export function App() {
               <ChevronRight className="size-5" />
             </Button>
           )}
+          <SettingsDialog />
         </div>
 
         {/* Tool content */}

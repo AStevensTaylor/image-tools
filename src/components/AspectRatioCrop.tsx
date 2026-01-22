@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Download, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSettings, getExportMimeType, getExportExtension } from "@/lib/settings";
 
 interface AspectRatioCropProps {
   imageUrl: string;
@@ -45,6 +46,7 @@ const aspectPresets: AspectPreset[] = [
 ];
 
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
+  const { settings } = useSettings();
   const [aspectWidth, setAspectWidth] = useState("16");
   const [aspectHeight, setAspectHeight] = useState("9");
   const [activePreset, setActivePreset] = useState<string | null>("16:9");
@@ -321,9 +323,14 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
       canvas.height
     );
 
+    const mimeType = getExportMimeType(settings.exportFormat);
+    const extension = getExportExtension(settings.exportFormat);
+    const quality = settings.exportFormat === "png" ? undefined : settings.exportQuality;
+
     const link = document.createElement("a");
-    link.download = `cropped-${imageName}`;
-    link.href = canvas.toDataURL("image/png");
+    const baseFileName = imageName.replace(/\.[^.]+$/, "");
+    link.download = `cropped-${baseFileName}.${extension}`;
+    link.href = canvas.toDataURL(mimeType, quality);
     link.click();
   };
 
