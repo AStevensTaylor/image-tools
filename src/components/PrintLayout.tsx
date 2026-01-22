@@ -645,13 +645,13 @@ export function PrintLayout({ images }: PrintLayoutProps) {
               height: ${effectiveHeight}mm;
               position: relative;
               page-break-after: always;
-              overflow: hidden;
             }
             .page:last-child {
               page-break-after: auto;
             }
             .image-container {
               position: absolute;
+              overflow: visible;
             }
             .image-container img {
               display: block;
@@ -659,6 +659,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
             .cut-marker {
               position: absolute;
               background: black;
+              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact;
             }
           </style>
         </head>
@@ -685,8 +687,6 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
         container.style.left = packedImg.x + "mm";
         container.style.top = packedImg.y + "mm";
-        container.style.width = w + "mm";
-        container.style.height = h + "mm";
 
         const img = doc.createElement("img");
         img.src = packedImg.image.url;
@@ -703,25 +703,26 @@ export function PrintLayout({ images }: PrintLayoutProps) {
         // Add cut markers
         const markerLen = Math.min(CUT_MARKER_LENGTH, Math.max(1, imageMargin / 2 - 0.5));
         const gap = Math.min(0.5, markerLen / 4);
+        const markerThickness = 0.2;
 
         if (markerLen > 0.5) {
           const markers = [
             // Top-left horizontal
-            { left: -markerLen, top: 0, width: markerLen - gap, height: 0.1 },
+            { left: -markerLen, top: -markerThickness / 2, width: markerLen - gap, height: markerThickness },
             // Top-left vertical
-            { left: 0, top: -markerLen, width: 0.1, height: markerLen - gap },
+            { left: -markerThickness / 2, top: -markerLen, width: markerThickness, height: markerLen - gap },
             // Top-right horizontal
-            { left: w + gap, top: 0, width: markerLen - gap, height: 0.1 },
+            { left: w + gap, top: -markerThickness / 2, width: markerLen - gap, height: markerThickness },
             // Top-right vertical
-            { left: w, top: -markerLen, width: 0.1, height: markerLen - gap },
+            { left: w - markerThickness / 2, top: -markerLen, width: markerThickness, height: markerLen - gap },
             // Bottom-left horizontal
-            { left: -markerLen, top: h, width: markerLen - gap, height: 0.1 },
+            { left: -markerLen, top: h - markerThickness / 2, width: markerLen - gap, height: markerThickness },
             // Bottom-left vertical
-            { left: 0, top: h + gap, width: 0.1, height: markerLen - gap },
+            { left: -markerThickness / 2, top: h + gap, width: markerThickness, height: markerLen - gap },
             // Bottom-right horizontal
-            { left: w + gap, top: h, width: markerLen - gap, height: 0.1 },
+            { left: w + gap, top: h - markerThickness / 2, width: markerLen - gap, height: markerThickness },
             // Bottom-right vertical
-            { left: w, top: h + gap, width: 0.1, height: markerLen - gap },
+            { left: w - markerThickness / 2, top: h + gap, width: markerThickness, height: markerLen - gap },
           ];
 
           for (const m of markers) {
