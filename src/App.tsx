@@ -3,6 +3,7 @@ import { ImageGallery } from "./components/ImageGallery";
 import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { BatchCrop } from "./components/BatchCrop";
 import { PrintLayout } from "./components/PrintLayout";
 import { Button } from "./components/ui/button";
@@ -185,6 +186,7 @@ export function App() {
               <ChevronRight className="size-5" />
             </Button>
           )}
+          <SettingsDialog />
         </div>
 
         {/* Tool content */}
