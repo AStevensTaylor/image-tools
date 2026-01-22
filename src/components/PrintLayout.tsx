@@ -295,6 +295,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(0);
   const [pages, setPages] = useState<Page[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isInitializedRef = useRef(false);
 
   const selectedPageSize: PageSize = (PAGE_SIZES.find((p) => p.id === pageSize) ?? PAGE_SIZES[0])!;
   const effectiveWidth = pageSize === "custom" ? customWidth : selectedPageSize.width;
@@ -432,6 +433,11 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
   // Repack images when settings change
   useEffect(() => {
+    if (!isInitializedRef.current && printImages.length === 0) {
+      return;
+    }
+    isInitializedRef.current = true;
+
     const newPages = packImages(
       printImages,
       effectiveWidth,
@@ -439,11 +445,10 @@ export function PrintLayout({ images }: PrintLayoutProps) {
       pageMargin,
       imageMargin
     );
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPages(newPages);
-    if (currentPageIndex >= newPages.length) {
-      setCurrentPageIndex(Math.max(0, newPages.length - 1));
-    }
-  }, [printImages, effectiveWidth, effectiveHeight, pageMargin, imageMargin, currentPageIndex]);
+    setCurrentPageIndex((prev) => (prev >= newPages.length ? Math.max(0, newPages.length - 1) : prev));
+  }, [printImages, effectiveWidth, effectiveHeight, pageMargin, imageMargin]);
 
   // Render preview
   useEffect(() => {
