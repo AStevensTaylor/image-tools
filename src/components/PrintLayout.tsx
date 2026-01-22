@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Trash2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 
@@ -608,6 +608,166 @@ export function PrintLayout({ images }: PrintLayoutProps) {
     pdf.save("print-layout.pdf");
   }, [pages, effectiveWidth, effectiveHeight, imageMargin]);
 
+  // Print directly using browser print dialog
+  const handlePrint = useCallback(async () => {
+    if (pages.length === 0) return;
+
+    // Create a hidden iframe for printing
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument!;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            @page {
+              size: ${effectiveWidth}mm ${effectiveHeight}mm;
+              margin: 0;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            .page {
+              width: ${effectiveWidth}mm;
+              height: ${effectiveHeight}mm;
+              position: relative;
+              page-break-after: always;
+              overflow: hidden;
+            }
+            .page:last-child {
+              page-break-after: auto;
+            }
+            .image-container {
+              position: absolute;
+            }
+            .image-container img {
+              display: block;
+            }
+            .cut-marker {
+              position: absolute;
+              background: black;
+            }
+          </style>
+        </head>
+        <body></body>
+      </html>
+    `);
+    doc.close();
+
+    const body = doc.body;
+
+    // Render each page
+    for (const page of pages) {
+      const pageDiv = doc.createElement("div");
+      pageDiv.className = "page";
+
+      for (const packedImg of page.images) {
+        const container = doc.createElement("div");
+        container.className = "image-container";
+        
+        const imgW = packedImg.image.width;
+        const imgH = packedImg.image.height;
+        const w = packedImg.rotated ? imgH : imgW;
+        const h = packedImg.rotated ? imgW : imgH;
+
+        container.style.left = packedImg.x + "mm";
+        container.style.top = packedImg.y + "mm";
+        container.style.width = w + "mm";
+        container.style.height = h + "mm";
+
+        const img = doc.createElement("img");
+        img.src = packedImg.image.url;
+        img.style.width = imgW + "mm";
+        img.style.height = imgH + "mm";
+        
+        if (packedImg.rotated) {
+          img.style.transform = "rotate(90deg) translateY(-100%)";
+          img.style.transformOrigin = "top left";
+        }
+
+        container.appendChild(img);
+
+        // Add cut markers
+        const markerLen = Math.min(CUT_MARKER_LENGTH, Math.max(1, imageMargin / 2 - 0.5));
+        const gap = Math.min(0.5, markerLen / 4);
+
+        if (markerLen > 0.5) {
+          const markers = [
+            // Top-left horizontal
+            { left: -markerLen, top: 0, width: markerLen - gap, height: 0.1 },
+            // Top-left vertical
+            { left: 0, top: -markerLen, width: 0.1, height: markerLen - gap },
+            // Top-right horizontal
+            { left: w + gap, top: 0, width: markerLen - gap, height: 0.1 },
+            // Top-right vertical
+            { left: w, top: -markerLen, width: 0.1, height: markerLen - gap },
+            // Bottom-left horizontal
+            { left: -markerLen, top: h, width: markerLen - gap, height: 0.1 },
+            // Bottom-left vertical
+            { left: 0, top: h + gap, width: 0.1, height: markerLen - gap },
+            // Bottom-right horizontal
+            { left: w + gap, top: h, width: markerLen - gap, height: 0.1 },
+            // Bottom-right vertical
+            { left: w, top: h + gap, width: 0.1, height: markerLen - gap },
+          ];
+
+          for (const m of markers) {
+            const marker = doc.createElement("div");
+            marker.className = "cut-marker";
+            marker.style.left = m.left + "mm";
+            marker.style.top = m.top + "mm";
+            marker.style.width = m.width + "mm";
+            marker.style.height = m.height + "mm";
+            container.appendChild(marker);
+          }
+        }
+
+        pageDiv.appendChild(container);
+      }
+
+      body.appendChild(pageDiv);
+    }
+
+    // Wait for images to load then print
+    const images = doc.querySelectorAll("img");
+    await Promise.all(
+      Array.from(images).map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+            } else {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }
+          })
+      )
+    );
+
+    // Small delay to ensure rendering is complete
+    await new Promise((r) => setTimeout(r, 100));
+
+    iframe.contentWindow?.print();
+
+    // Clean up after print dialog closes
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  }, [pages, effectiveWidth, effectiveHeight, imageMargin]);
+
   return (
     <div className="h-full flex flex-col p-6 overflow-hidden">
       <div className="flex items-center justify-between mb-4">
@@ -776,15 +936,26 @@ export function PrintLayout({ images }: PrintLayoutProps) {
             </div>
           </div>
 
-          {/* Download button */}
-          <Button
-            onClick={downloadPdf}
-            disabled={pages.length === 0}
-            className="w-full"
-          >
-            <Download className="size-4" />
-            Download PDF ({pages.length} {pages.length === 1 ? "page" : "pages"})
-          </Button>
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={downloadPdf}
+              disabled={pages.length === 0}
+              className="w-full"
+            >
+              <Download className="size-4" />
+              Download PDF ({pages.length} {pages.length === 1 ? "page" : "pages"})
+            </Button>
+            <Button
+              onClick={handlePrint}
+              disabled={pages.length === 0}
+              variant="outline"
+              className="w-full"
+            >
+              <Printer className="size-4" />
+              Print
+            </Button>
+          </div>
         </div>
 
         {/* Preview area */}
