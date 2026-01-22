@@ -4,12 +4,13 @@ import { AspectRatioCrop } from "./components/AspectRatioCrop";
 import { GifFrameExtractor } from "./components/GifFrameExtractor";
 import { PngConverter } from "./components/PngConverter";
 import { BatchCrop } from "./components/BatchCrop";
+import { PrintLayout } from "./components/PrintLayout";
 import { Button } from "./components/ui/button";
-import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight } from "lucide-react";
+import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "./lib/utils";
 import "./index.css";
 
-type Tool = "crop" | "gif-frames" | "png-convert" | "batch-crop";
+type Tool = "crop" | "gif-frames" | "png-convert" | "batch-crop" | "print-layout";
 
 interface ImageItem {
   id: string;
@@ -17,11 +18,12 @@ interface ImageItem {
   url: string;
 }
 
-const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean }[] = [
-  { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio" },
-  { id: "batch-crop", label: "Batch Crop", icon: Layers, description: "Generate multiple crops for app stores" },
+const tools: { id: Tool; label: string; icon: typeof Crop; description: string; requiresAnimated?: boolean; requiresImage?: boolean }[] = [
+  { id: "crop", label: "Aspect Crop", icon: Crop, description: "Crop with custom aspect ratio", requiresImage: true },
+  { id: "batch-crop", label: "Batch Crop", icon: Layers, description: "Generate multiple crops for app stores", requiresImage: true },
   { id: "gif-frames", label: "Extract Frames", icon: Film, description: "Extract frames from GIF/WebP", requiresAnimated: true },
-  { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG" },
+  { id: "png-convert", label: "Convert to PNG", icon: FileImage, description: "Convert any image to PNG", requiresImage: true },
+  { id: "print-layout", label: "Print Layout", icon: Printer, description: "Pack images onto pages for printing" },
 ];
 
 const SCROLL_AMOUNT = 200;
@@ -187,7 +189,9 @@ export function App() {
 
         {/* Tool content */}
         <div className="flex-1 overflow-hidden">
-          {selectedImage ? (
+          {activeTool === "print-layout" ? (
+            <PrintLayout images={images} />
+          ) : selectedImage ? (
             activeTool === "crop" ? (
               <AspectRatioCrop
                 imageUrl={selectedImage.url}
