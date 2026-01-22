@@ -37,6 +37,7 @@ export function App() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const toolsContainerRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
 
   const selectedImage = images.find((img) => img.id === selectedImageId);
   const isAnimatedFormat = selectedImage?.file.type === "image/gif" || selectedImage?.file.type === "image/webp";
@@ -51,7 +52,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    updateScrollButtons();
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      updateScrollButtons();
+    }
+    
     window.addEventListener('resize', updateScrollButtons);
     return () => window.removeEventListener('resize', updateScrollButtons);
   }, [updateScrollButtons]);
