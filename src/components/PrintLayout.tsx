@@ -10,7 +10,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Download, Trash2, ChevronLeft, ChevronRight, Printer } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { jsPDF } from "jspdf";
 
 interface PrintLayoutProps {
@@ -130,7 +129,7 @@ class MaxRectsPacker {
           y: freeRect.y,
           width: placedRect.x - freeRect.x,
           height: freeRect.height,
-        });
+        } as Rect);
       }
 
       // Right portion
@@ -140,7 +139,7 @@ class MaxRectsPacker {
           y: freeRect.y,
           width: freeRect.x + freeRect.width - (placedRect.x + placedRect.width),
           height: freeRect.height,
-        });
+        } as Rect);
       }
 
       // Top portion
@@ -150,7 +149,7 @@ class MaxRectsPacker {
           y: freeRect.y,
           width: freeRect.width,
           height: placedRect.y - freeRect.y,
-        });
+        } as Rect);
       }
 
       // Bottom portion
@@ -160,7 +159,7 @@ class MaxRectsPacker {
           y: placedRect.y + placedRect.height,
           width: freeRect.width,
           height: freeRect.y + freeRect.height - (placedRect.y + placedRect.height),
-        });
+        } as Rect);
       }
     }
 
@@ -180,15 +179,21 @@ class MaxRectsPacker {
   private pruneRects(rects: Rect[]): Rect[] {
     const result: Rect[] = [];
     for (let i = 0; i < rects.length; i++) {
+      const rectI = rects[i];
+      if (!rectI) continue;
+
       let isContained = false;
       for (let j = 0; j < rects.length; j++) {
-        if (i !== j && this.contains(rects[j], rects[i])) {
-          isContained = true;
-          break;
+        if (i !== j) {
+          const rectJ = rects[j];
+          if (rectJ && this.contains(rectJ, rectI)) {
+            isContained = true;
+            break;
+          }
         }
       }
       if (!isContained) {
-        result.push(rects[i]);
+        result.push(rectI);
       }
     }
     return result;
@@ -254,7 +259,7 @@ function packImages(
 
     // Remove placed images
     for (let i = remainingImages.length - 1; i >= 0; i--) {
-      if (placedIds.has(remainingImages[i].id)) {
+      if (remainingImages[i] && placedIds.has(remainingImages[i]!.id)) {
         remainingImages.splice(i, 1);
       }
     }
@@ -291,7 +296,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
   const [pages, setPages] = useState<Page[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const selectedPageSize = PAGE_SIZES.find((p) => p.id === pageSize) || PAGE_SIZES[0];
+  const selectedPageSize: PageSize = (PAGE_SIZES.find((p) => p.id === pageSize) ?? PAGE_SIZES[0])!;
   const effectiveWidth = pageSize === "custom" ? customWidth : selectedPageSize.width;
   const effectiveHeight = pageSize === "custom" ? customHeight : selectedPageSize.height;
 
@@ -351,12 +356,13 @@ export function PrintLayout({ images }: PrintLayoutProps) {
   }, []);
 
   // Helper function to draw an image with optional rotation and cut markers
-  const drawPackedImage = (
-    ctx: CanvasRenderingContext2D,
-    packedImg: PackedImage,
-    img: HTMLImageElement,
-    scale: number
-  ) => {
+  const drawPackedImage = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      packedImg: PackedImage,
+      img: HTMLImageElement,
+      scale: number
+    ) => {
     const x = packedImg.x * scale;
     const y = packedImg.y * scale;
     const imgW = packedImg.image.width * scale;
@@ -420,7 +426,9 @@ export function PrintLayout({ images }: PrintLayoutProps) {
       ctx.lineTo(x + w, y + h + markerLen);
       ctx.stroke();
     }
-  };
+    },
+    [imageMargin]
+  );
 
   // Repack images when settings change
   useEffect(() => {
@@ -469,7 +477,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
     );
     ctx.setLineDash([]);
 
-    const currentPage = pages[currentPageIndex];
+    const currentPage: Page | undefined = pages[currentPageIndex];
     if (!currentPage) return;
 
     // Load and draw images
@@ -488,7 +496,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
     );
 
     Promise.all(imagePromises);
-  }, [pages, currentPageIndex, effectiveWidth, effectiveHeight, pageMargin]);
+  }, [pages, currentPageIndex, effectiveWidth, effectiveHeight, pageMargin, drawPackedImage]);
 
   // Download all pages as images
   // Helper to convert image URL to base64 data URL
@@ -524,7 +532,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
         pdf.addPage([effectiveWidth, effectiveHeight], effectiveWidth > effectiveHeight ? "landscape" : "portrait");
       }
 
-      const page = pages[pageIdx];
+      const page: Page | undefined = pages[pageIdx];
+      if (!page) continue;
 
       // Draw each image
       for (const packedImg of page.images) {
@@ -535,14 +544,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
           if (packedImg.rotated) {
             // For rotated images, we need to use jsPDF's rotation
-            const centerX = packedImg.x + imgH / 2;
-            const centerY = packedImg.y + imgW / 2;
-            
             pdf.saveGraphicsState();
             // Translate to center, rotate, then draw offset
-            const angle = 90;
-            const radians = (angle * Math.PI) / 180;
-            
             // Calculate position for rotated image
             const rotatedX = packedImg.x;
             const rotatedY = packedImg.y;
@@ -676,7 +679,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
       const pageDiv = doc.createElement("div");
       pageDiv.className = "page";
 
-      for (const packedImg of page.images) {
+      for (const packedImg of (page as Page).images) {
         const container = doc.createElement("div");
         container.className = "image-container";
         

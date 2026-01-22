@@ -78,7 +78,7 @@ export function App() {
     setImages((prev) => [...prev, ...newImages]);
 
     if (newImages.length > 0 && !selectedImageId) {
-      setSelectedImageId(newImages[0].id);
+      setSelectedImageId(newImages[0]?.id ?? null);
     }
   }, [selectedImageId]);
 
@@ -88,21 +88,19 @@ export function App() {
 
   const handleImageRemove = useCallback((id: string) => {
     setImages((prev) => {
-      const newImages = prev.filter((img) => img.id !== id);
+      const updatedImages = prev.filter((img) => img.id !== id);
       const removedImage = prev.find((img) => img.id === id);
       if (removedImage) {
         URL.revokeObjectURL(removedImage.url);
       }
-      return newImages;
-    });
 
-    if (selectedImageId === id) {
-      setSelectedImageId((prev) => {
-        const remaining = images.filter((img) => img.id !== id);
-        return remaining.length > 0 ? remaining[0].id : null;
-      });
-    }
-  }, [selectedImageId, images]);
+      if (selectedImageId === id) {
+        setSelectedImageId(updatedImages[0]?.id ?? null);
+      }
+
+      return updatedImages;
+    });
+  }, [selectedImageId]);
 
   return (
     <div className="fixed inset-0 flex flex-col md:flex-row">
