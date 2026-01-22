@@ -378,42 +378,47 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
     ctx.restore();
 
-    // Draw cut markers
+    // Draw cut markers - limit length to half the image margin to avoid overlap
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = scale > 5 ? 1 : 0.5;
-    const markerLen = CUT_MARKER_LENGTH * scale;
+    const maxMarkerLen = (imageMargin * scale) / 2 - 1;
+    const markerLen = Math.min(CUT_MARKER_LENGTH * scale, Math.max(2, maxMarkerLen));
+    const gap = Math.min(2, maxMarkerLen / 2);
 
-    // Top-left corner
-    ctx.beginPath();
-    ctx.moveTo(x - markerLen, y);
-    ctx.lineTo(x - 2, y);
-    ctx.moveTo(x, y - markerLen);
-    ctx.lineTo(x, y - 2);
-    ctx.stroke();
+    // Only draw markers if there's enough margin space
+    if (markerLen > 1) {
+      // Top-left corner
+      ctx.beginPath();
+      ctx.moveTo(x - markerLen, y);
+      ctx.lineTo(x - gap, y);
+      ctx.moveTo(x, y - markerLen);
+      ctx.lineTo(x, y - gap);
+      ctx.stroke();
 
-    // Top-right corner
-    ctx.beginPath();
-    ctx.moveTo(x + w + 2, y);
-    ctx.lineTo(x + w + markerLen, y);
-    ctx.moveTo(x + w, y - markerLen);
-    ctx.lineTo(x + w, y - 2);
-    ctx.stroke();
+      // Top-right corner
+      ctx.beginPath();
+      ctx.moveTo(x + w + gap, y);
+      ctx.lineTo(x + w + markerLen, y);
+      ctx.moveTo(x + w, y - markerLen);
+      ctx.lineTo(x + w, y - gap);
+      ctx.stroke();
 
-    // Bottom-left corner
-    ctx.beginPath();
-    ctx.moveTo(x - markerLen, y + h);
-    ctx.lineTo(x - 2, y + h);
-    ctx.moveTo(x, y + h + 2);
-    ctx.lineTo(x, y + h + markerLen);
-    ctx.stroke();
+      // Bottom-left corner
+      ctx.beginPath();
+      ctx.moveTo(x - markerLen, y + h);
+      ctx.lineTo(x - gap, y + h);
+      ctx.moveTo(x, y + h + gap);
+      ctx.lineTo(x, y + h + markerLen);
+      ctx.stroke();
 
-    // Bottom-right corner
-    ctx.beginPath();
-    ctx.moveTo(x + w + 2, y + h);
-    ctx.lineTo(x + w + markerLen, y + h);
-    ctx.moveTo(x + w, y + h + 2);
-    ctx.lineTo(x + w, y + h + markerLen);
-    ctx.stroke();
+      // Bottom-right corner
+      ctx.beginPath();
+      ctx.moveTo(x + w + gap, y + h);
+      ctx.lineTo(x + w + markerLen, y + h);
+      ctx.moveTo(x + w, y + h + gap);
+      ctx.lineTo(x + w, y + h + markerLen);
+      ctx.stroke();
+    }
   };
 
   // Repack images when settings change
