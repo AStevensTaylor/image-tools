@@ -8,7 +8,6 @@ import {
   isFileSystemAccessSupported,
   requestDirectory,
   saveFilesToDirectory,
-  dataUrlToBlob,
   hasCachedDirectory,
   clearCachedDirectory,
   checkFilesExist,
