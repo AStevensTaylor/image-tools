@@ -12,11 +12,18 @@ import { SettingsProvider } from "./lib/settings";
 import swUrl from "./sw.js" with { type: "file" };
 // Import assets to ensure they are bundled and hashed
 import "./icon-512.png" with { type: "file" };
+import "./icon-192.png" with { type: "file" };
+import "./icon.svg" with { type: "file" };
 
 // Register service worker
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register(swUrl as string);
+    navigator.serviceWorker.register(swUrl as string)
+      .then(registration => {
+        console.log("Service Worker registered with scope:", registration.scope);
+      }).catch(error => {
+        console.error("Service Worker registration failed:", error);
+      });
   });
 }
 
