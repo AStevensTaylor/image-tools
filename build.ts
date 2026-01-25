@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
-import { rm, cp } from "fs/promises";
+import { rm } from "fs/promises";
 import path from "path";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -137,19 +137,31 @@ const result = await Bun.build({
   ...cliConfig,
 });
 
-// Copy public files to dist
-const publicDir = path.join(process.cwd(), "public");
-if (existsSync(publicDir)) {
-  await cp(publicDir, outdir, { recursive: true });
-}
+// Process manifest.json with hashed icon paths
+const manifestSrc = path.join(process.cwd(), "src", "manifest.json");
+if (existsSync(manifestSrc)) {
+  const manifest = await Bun.file(manifestSrc).json();
 
-// Inject PWA links into HTML
-const htmlPath = path.join(outdir, "index.html");
-if (existsSync(htmlPath)) {
-  let html = await Bun.file(htmlPath).text();
-  const pwaLinks = `<link rel="manifest" href="/manifest.json" />\n    <link rel="apple-touch-icon" href="/icon-192.png" />`;
-  html = html.replace('</head>', `    ${pwaLinks}\n  </head>`);
-  await Bun.write(htmlPath, html);
+  // Find hashed icon filenames from build output
+  const findHashedAsset = (originalName: string): string => {
+    const baseName = path.basename(originalName, path.extname(originalName));
+    const ext = path.extname(originalName);
+    const output = result.outputs.find(o => {
+      const outputBase = path.basename(o.path);
+      return outputBase.startsWith(baseName) && outputBase.endsWith(ext);
+    });
+    return output ? `./${path.basename(output.path)}` : originalName;
+  };
+
+  // Update icon paths in manifest
+  if (manifest.icons) {
+    manifest.icons = manifest.icons.map((icon: { src: string; sizes: string; type: string; purpose?: string }) => ({
+      ...icon,
+      src: findHashedAsset(icon.src),
+    }));
+  }
+
+  await Bun.write(path.join(outdir, "manifest.json"), JSON.stringify(manifest));
 }
 
 const end = performance.now();
