@@ -25,7 +25,10 @@ type PermissionCapableDirectoryHandle = FileSystemDirectoryHandle & {
 	) => Promise<PermissionState>;
 };
 
-// Check if File System Access API is supported
+/**
+ * Checks if the File System Access API is supported in the current browser.
+ * @returns True if showDirectoryPicker is available, false otherwise
+ */
 export function isFileSystemAccessSupported(): boolean {
 	return "showDirectoryPicker" in window;
 }
@@ -35,7 +38,11 @@ const DB_VERSION = 1;
 const STORE_NAME = "directory-handles";
 const HANDLE_KEY = "saved-directory";
 
-// Open IndexedDB database
+/**
+ * Opens or creates the IndexedDB database for storing directory handles.
+ * Initializes the object store if needed.
+ * @returns Promise resolving to the opened IDBDatabase instance
+ */
 function openDB(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -52,7 +59,12 @@ function openDB(): Promise<IDBDatabase> {
 	});
 }
 
-// Save directory handle to IndexedDB
+/**
+ * Persists a directory handle to IndexedDB for later retrieval.
+ * Allows users to avoid re-selecting directories on subsequent app uses.
+ * @param handle - The FileSystemDirectoryHandle to save
+ * @returns Promise that resolves when the handle is saved
+ */
 export async function saveCachedDirectory(
 	handle: FileSystemDirectoryHandle,
 ): Promise<void> {
@@ -77,7 +89,11 @@ export async function saveCachedDirectory(
 	}
 }
 
-// Retrieve cached directory handle from IndexedDB
+/**
+ * Retrieves a previously saved directory handle from IndexedDB.
+ * Verifies that permission is still granted before returning the handle.
+ * @returns Promise resolving to the directory handle if found and accessible, null otherwise
+ */
 export async function getCachedDirectory(): Promise<FileSystemDirectoryHandle | null> {
 	try {
 		const db = await openDB();
@@ -136,6 +152,11 @@ export async function getCachedDirectory(): Promise<FileSystemDirectoryHandle | 
 }
 
 // Clear cached directory handle
+/**
+ * Removes the cached directory handle from IndexedDB storage.
+ * Called when the user opts to clear their directory selection.
+ * @returns Promise that resolves when the cached handle is deleted
+ */
 export async function clearCachedDirectory(): Promise<void> {
 	try {
 		const db = await openDB();
@@ -158,7 +179,10 @@ export async function clearCachedDirectory(): Promise<void> {
 	}
 }
 
-// Check if we have a cached directory
+/**
+ * Checks if a directory handle exists in the cache.
+ * @returns Promise resolving to true if a cached directory exists, false otherwise
+ */
 export async function hasCachedDirectory(): Promise<boolean> {
 	try {
 		const db = await openDB();
@@ -184,7 +208,12 @@ export async function hasCachedDirectory(): Promise<boolean> {
 	}
 }
 
-// Request directory access from user (with caching support)
+/**
+ * Requests directory access from the user via File System Access API.
+ * Attempts to use a cached directory handle if useCache is true.
+ * @param useCache - If true, tries to use previously saved directory handle first (default: true)
+ * @returns Promise resolving to directory handle if granted, null if not supported or denied
+ */
 export async function requestDirectory(
 	useCache: boolean = true,
 ): Promise<FileSystemDirectoryHandle | null> {
@@ -228,6 +257,12 @@ export async function requestDirectory(
 
 const SAFE_PATH_SEGMENT_REGEX = /^[a-zA-Z0-9._-]+$/;
 
+/**
+ * Validates a path segment for safe file system operations.
+ * Ensures segment doesn't contain invalid characters or path traversal attempts.
+ * @param segment - The path segment to validate
+ * @throws Error if segment is invalid or unsafe
+ */
 function validatePathSegment(segment: string): void {
 	const trimmed = segment.trim();
 	if (
@@ -240,7 +275,15 @@ function validatePathSegment(segment: string): void {
 	}
 }
 
-// Save a file to the directory
+/**
+ * Saves a file to the specified directory handle using File System Access API.
+ * Creates subdirectories if specified in subPath.
+ * @param dirHandle - The directory handle to save the file to
+ * @param filename - Name of the file to create
+ * @param data - File content as Blob or string
+ * @param subPath - Optional path of subdirectories to create/navigate to
+ * @returns Promise that resolves when the file is written
+ */
 export async function saveFileToDirectory(
 	dirHandle: FileSystemDirectoryHandle,
 	filename: string,
@@ -279,7 +322,12 @@ export async function saveFileToDirectory(
 	await writable.close();
 }
 
-// Check if files exist in directory
+/**
+ * Checks which files from a list already exist in the given directory.
+ * @param dirHandle - The directory handle to check in
+ * @param filenames - List of filenames to check for existence
+ * @returns Promise resolving to an array of existing filenames
+ */
 export async function checkFilesExist(
 	dirHandle: FileSystemDirectoryHandle,
 	filenames: string[],
@@ -304,7 +352,14 @@ export async function checkFilesExist(
 	return existingFiles;
 }
 
-// Save multiple files to directory with progress callback
+/**
+ * Saves multiple files to a directory with progress tracking.
+ * Calls the onProgress callback after each file is written.
+ * @param dirHandle - The directory handle to save files to
+ * @param files - Array of file objects containing filename, data, and optional subPath
+ * @param onProgress - Optional callback receiving current count, total count, and current filename
+ * @returns Promise that resolves when all files are written
+ */
 export async function saveFilesToDirectory(
 	dirHandle: FileSystemDirectoryHandle,
 	files: Array<{ filename: string; data: Blob | string; subPath?: string }>,
@@ -324,7 +379,11 @@ export async function saveFilesToDirectory(
 	}
 }
 
-// Convert data URL to Blob
+/**
+ * Converts a data URL (Base64) to a Blob object.
+ * @param dataUrl - The data URL string to convert
+ * @returns Blob object containing the decoded data
+ */
 export function dataUrlToBlob(dataUrl: string): Blob {
 	const [header, base64] = dataUrl.split(",");
 	if (!header || !base64) {

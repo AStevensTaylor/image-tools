@@ -30,7 +30,12 @@ interface AspectPreset {
 	category: string;
 }
 
-// Validate image URL is safe to load
+/**
+ * Validates that an image URL is safe to load by checking protocol and format.
+ * Allows https, http, data, and blob URLs.
+ * @param url - The URL string to validate
+ * @returns True if the URL is valid and safe to load, false otherwise
+ */
 const isValidImageUrl = (url: string | undefined): boolean => {
 	if (!url || typeof url !== "string" || url.trim() === "") {
 		return false;
@@ -66,6 +71,12 @@ const aspectPresets: AspectPreset[] = [
 	{ label: "Single", width: 69, height: 94, category: "Michi/VaultX" },
 ];
 
+/**
+ * AspectRatioCrop component provides interactive cropping with customizable aspect ratios.
+ * Supports preset ratios for common use cases and manual ratio input.
+ * @param props - Component props containing imageUrl and imageName
+ * @returns The rendered AspectRatioCrop component
+ */
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 	const { settings } = useSettings();
 	const [imageUrlValid, setImageUrlValid] = useState(() =>

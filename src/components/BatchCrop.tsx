@@ -69,7 +69,12 @@ const defaultPresets: CropPreset[] = [
 	},
 ];
 
-// Helper function to extract and sanitize filename without extension
+/**
+ * Extracts and sanitizes a filename prefix by removing extension and unsafe characters.
+ * Normalizes Unicode and enforces maximum length to create safe filenames.
+ * @param filename - The filename to process
+ * @returns A sanitized filename prefix suitable for use in generated filenames
+ */
 const extractFilenamePrefix = (filename: string): string => {
 	if (!filename || typeof filename !== "string") {
 		return "image";
@@ -97,6 +102,12 @@ const extractFilenamePrefix = (filename: string): string => {
 	return trimmed || "image";
 };
 
+/**
+ * BatchCrop component enables generating multiple crop variants optimized for app store graphics.
+ * Supports preset dimensions for Google Play Store and other platforms.
+ * @param props - Component props containing imageUrl and imageName
+ * @returns The rendered BatchCrop component
+ */
 export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 	const [presets, setPresets] = useState<CropPreset[]>(defaultPresets);
 	const [selectedPreset, setSelectedPreset] = useState<string>("phone");

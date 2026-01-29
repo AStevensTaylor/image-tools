@@ -8,6 +8,12 @@ interface PngConverterProps {
 	imageName: string;
 }
 
+/**
+ * PngConverter component converts any image format to PNG with transparency preservation.
+ * Supports JPEG, WebP, GIF, BMP, SVG, AVIF, and more formats.
+ * @param props - Component props containing imageUrl and imageName
+ * @returns The rendered PngConverter component
+ */
 export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 	const [isConverting, setIsConverting] = useState(false);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
