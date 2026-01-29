@@ -102,27 +102,20 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     });
   }, [imageSize, aspectRatio]);
 
+  // Reset crop box when image changes
   useEffect(() => {
-    if (!isInitializedRef.current) {
+    isInitializedRef.current = false;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    if (!isInitializedRef.current && imageSize.width && imageSize.height) {
       isInitializedRef.current = true;
+    }
+    if (imageSize.width && imageSize.height) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       initializeCropBox();
     }
   }, [imageSize.width, imageSize.height, aspectRatio, initializeCropBox]);
-
-  // Reset crop box when image changes
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    initializeCropBox();
-  }, [imageUrl, initializeCropBox]);
-
-  // Reset crop box when aspect ratio changes
-  useEffect(() => {
-    if (isInitializedRef.current) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      initializeCropBox();
-    }
-  }, [aspectRatio, initializeCropBox]);
 
   const handleImageLoad = () => {
     if (imageRef.current) {
