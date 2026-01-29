@@ -71,7 +71,9 @@ export function App() {
 
   useEffect(() => {
     return () => {
-      imageUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      imageUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
     };
   }, []);
 
