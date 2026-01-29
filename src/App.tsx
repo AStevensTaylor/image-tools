@@ -9,6 +9,7 @@ import { PrintLayout } from "./components/PrintLayout";
 import { Button } from "./components/ui/button";
 import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "./lib/utils";
+import type { WindowWithGallery } from "./lib/gallery";
 import "./index.css";
 
 type Tool = "crop" | "gif-frames" | "png-convert" | "batch-crop" | "print-layout";
@@ -62,6 +63,20 @@ export function App() {
     return () => window.removeEventListener('resize', updateScrollButtons);
   }, [updateScrollButtons]);
 
+  const imageUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    imageUrlsRef.current = images.map((img) => img.url);
+  }, [images]);
+
+  useEffect(() => {
+    return () => {
+      imageUrlsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
+
   const scroll = useCallback((direction: 'left' | 'right') => {
     const container = toolsContainerRef.current;
     if (!container) return;
@@ -87,6 +102,38 @@ export function App() {
       setSelectedImageId(newImages[0]?.id ?? null);
     }
   }, [selectedImageId]);
+
+  const handleAddGeneratedImage = useCallback(async (dataUrl: string, suggestedName?: string) => {
+    try {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) return;
+
+      const extensionFromMime = blob.type.split("/")[1] || "png";
+      const fileName =
+        suggestedName ||
+        `output-${Date.now()}.${extensionFromMime}`;
+
+      const file = new File([blob], fileName, { type: blob.type });
+      const image: ImageItem = {
+        id: crypto.randomUUID(),
+        file,
+        url: URL.createObjectURL(file),
+      };
+
+      setImages((prev) => [...prev, image]);
+      setSelectedImageId(image.id);
+    } catch (error) {
+      console.error("Failed to add generated image to gallery", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    (window as WindowWithGallery).addGeneratedImage = handleAddGeneratedImage;
+    return () => {
+      (window as WindowWithGallery).addGeneratedImage = undefined;
+    };
+  }, [handleAddGeneratedImage]);
 
   const handleImageSelect = useCallback((id: string) => {
     setSelectedImageId(id);
