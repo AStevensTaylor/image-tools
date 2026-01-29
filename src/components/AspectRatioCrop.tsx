@@ -53,7 +53,6 @@ const aspectPresets: AspectPreset[] = [
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 	const { settings } = useSettings();
 	const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
-	const _isInitializedRef = useRef(false);
 	const [aspectWidth, setAspectWidth] = useState("16");
 	const [aspectHeight, setAspectHeight] = useState("9");
 	const [activePreset, setActivePreset] = useState<string | null>("16:9");
@@ -110,7 +109,6 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
 	useEffect(() => {
 		if (imageSize.width && imageSize.height) {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			initializeCropBox();
 		}
 	}, [initializeCropBox, imageSize.width, imageSize.height]);
