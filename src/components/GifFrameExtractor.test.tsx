@@ -2,6 +2,7 @@ import { render, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { SettingsProvider } from "@/lib/settings";
+import type { TestGlobal } from "../../test/types";
 import { GifFrameExtractor } from "./GifFrameExtractor";
 
 beforeEach(() => {
@@ -77,7 +78,7 @@ test("renders without crashing", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves, keeps loading state
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	renderWithSettings(
 		<GifFrameExtractor
@@ -94,7 +95,7 @@ test("shows loading state initially", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -112,7 +113,7 @@ test("shows GIF Frame Extractor title", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -132,7 +133,7 @@ test("shows error on fetch failure", async () => {
 			status: 404,
 			statusText: "Not Found",
 		});
-	}) as any;
+	}) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -155,7 +156,7 @@ test("shows error for unsupported file type", async () => {
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as any;
+	}) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -172,8 +173,8 @@ test("shows error for unsupported file type", async () => {
 });
 
 test("shows error for WebP without ImageDecoder", async () => {
-	const originalImageDecoder = (global as any).ImageDecoder;
-	delete (global as any).ImageDecoder;
+	const originalImageDecoder = (global as TestGlobal).ImageDecoder;
+	delete (global as TestGlobal).ImageDecoder;
 
 	global.fetch = ((url: string) => {
 		const buffer = new ArrayBuffer(100);
@@ -181,7 +182,7 @@ test("shows error for WebP without ImageDecoder", async () => {
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as any;
+	}) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -197,7 +198,7 @@ test("shows error for WebP without ImageDecoder", async () => {
 	});
 
 	if (originalImageDecoder) {
-		(global as any).ImageDecoder = originalImageDecoder;
+		(global as TestGlobal).ImageDecoder = originalImageDecoder;
 	}
 });
 
@@ -205,7 +206,7 @@ test("displays component structure with playback controls", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -224,7 +225,7 @@ test("displays selection controls", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -246,7 +247,7 @@ test("displays download and export buttons", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -265,7 +266,7 @@ test("download button is disabled initially", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -283,7 +284,7 @@ test("add to gallery button is disabled initially", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -301,7 +302,7 @@ test("save to folder button is disabled initially", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -319,7 +320,7 @@ test("displays frame selection counter", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -337,7 +338,7 @@ test("component accepts different file types", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { unmount: unmount1, container } = renderWithSettings(
 		<GifFrameExtractor
@@ -358,7 +359,7 @@ test("shows error when parse fails for GIF", async () => {
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as any;
+	}) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -384,7 +385,7 @@ test("hides loading when error occurs", async () => {
 			status: 404,
 			statusText: "Not Found",
 		});
-	}) as any;
+	}) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -404,7 +405,7 @@ test("component renders with SettingsProvider context", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -421,7 +422,7 @@ test("cleanup works on unmount", () => {
 	global.fetch = (() =>
 		new Promise(() => {
 			// Never resolves
-		})) as any;
+		})) as unknown as typeof fetch;
 
 	const { unmount } = renderWithSettings(
 		<GifFrameExtractor

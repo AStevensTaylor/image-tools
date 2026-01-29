@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { SettingsProvider } from "@/lib/settings";
+import type { TestWindow } from "../../test/types";
 import { AspectRatioCrop } from "./AspectRatioCrop";
 
 const VALID_DATA_URL =
@@ -17,11 +18,11 @@ function renderWithSettings(component: React.ReactNode) {
 }
 
 beforeEach(() => {
-	(window as any).addGeneratedImage = () => undefined;
+	(window as TestWindow).addGeneratedImage = () => undefined;
 });
 
 afterEach(() => {
-	delete (window as any).addGeneratedImage;
+	delete (window as TestWindow).addGeneratedImage;
 });
 
 test("renders component with valid URL", () => {
@@ -187,7 +188,7 @@ test("renders Download Crop button", () => {
 });
 
 test("renders Add to Gallery button when callback available", () => {
-	(window as any).addGeneratedImage = () => undefined;
+	(window as TestWindow).addGeneratedImage = () => undefined;
 
 	const { container } = renderWithSettings(
 		<AspectRatioCrop imageUrl={VALID_DATA_URL} imageName="test.png" />,
@@ -201,7 +202,7 @@ test("renders Add to Gallery button when callback available", () => {
 });
 
 test("does not render Add to Gallery button when callback unavailable", () => {
-	delete (window as any).addGeneratedImage;
+	delete (window as TestWindow).addGeneratedImage;
 
 	const { container } = renderWithSettings(
 		<AspectRatioCrop imageUrl={VALID_DATA_URL} imageName="test.png" />,
@@ -222,7 +223,7 @@ test("renders image with draggable false", () => {
 	const img = container.querySelector(
 		'img[alt="Image to crop"]',
 	) as HTMLImageElement;
-	expect((img as any).getAttribute("draggable")).toBe("false");
+	expect(img?.getAttribute("draggable")).toBe("false");
 });
 
 test("renders aspect ratio input fields", () => {

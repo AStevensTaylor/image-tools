@@ -338,11 +338,13 @@ test.describe("Image Tools E2E Tests", () => {
 			await expect(toolsArea).toBeVisible();
 		});
 
-		test("should handle image upload via button click", async ({ page }) => {
+		test("should display upload button and handle file upload", async ({
+			page,
+		}) => {
 			const uploadButton = page
 				.locator("button", { hasText: /Upload/i })
 				.first();
-			await uploadButton.click();
+			await expect(uploadButton).toBeVisible();
 
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");

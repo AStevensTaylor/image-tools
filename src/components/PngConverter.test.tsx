@@ -1,12 +1,13 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import type { MockImageElement, TestWindow } from "../../test/types";
 import { PngConverter } from "./PngConverter";
 
 const VALID_DATA_URL =
 	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-let imageInstances: any[] = [];
-let pendingLoadCallbacks: Array<() => void> = [];
+let imageInstances: MockImageElement[] = [];
+let _pendingLoadCallbacks: Array<() => void> = [];
 
 function queryByText(container: HTMLElement, text: string | RegExp) {
 	const walker = document.createTreeWalker(
@@ -46,9 +47,9 @@ function queryByText(container: HTMLElement, text: string | RegExp) {
 
 beforeEach(() => {
 	imageInstances = [];
-	pendingLoadCallbacks = [];
+	_pendingLoadCallbacks = [];
 
-	(window as any).Image = class MockImage {
+	(window as TestWindow).Image = class MockImage implements MockImageElement {
 		_src: string = "";
 		crossOrigin: string = "";
 		naturalWidth: number = 100;
@@ -74,9 +75,9 @@ beforeEach(() => {
 		get src() {
 			return this._src;
 		}
-	};
+	} as unknown as typeof Image;
 
-	(window as any).addGeneratedImage = vi.fn(() => undefined);
+	(window as TestWindow).addGeneratedImage = vi.fn(() => undefined);
 });
 
 test("renders component with imageUrl and imageName props", () => {
@@ -131,9 +132,9 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("displays image dimensions after conversion", async () => {
 		imageInstances = [];
-		pendingLoadCallbacks = [];
+		_pendingLoadCallbacks = [];
 
-		(window as any).Image = class MockImage {
+		(window as TestWindow).Image = class MockImage implements MockImageElement {
 			_src: string = "";
 			crossOrigin: string = "";
 			naturalWidth: number = 800;
@@ -159,7 +160,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 			get src() {
 				return this._src;
 			}
-		};
+		} as unknown as typeof Image;
 
 		const { container } = render(
 			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
@@ -218,7 +219,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 	});
 
 	test("Add to Gallery button appears when addGeneratedImage is available", async () => {
-		(window as any).addGeneratedImage = vi.fn(() => undefined);
+		(window as TestWindow).addGeneratedImage = vi.fn(() => undefined);
 
 		const { container } = render(
 			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
@@ -234,8 +235,10 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 	});
 
 	test("calling Add to Gallery triggers addGeneratedImage callback", async () => {
-		const addToGalleryMock = vi.fn((...args: any[]) => undefined);
-		(window as any).addGeneratedImage = addToGalleryMock;
+		const addToGalleryMock = vi.fn(
+			(..._args: [string, string | undefined]) => undefined,
+		);
+		(window as TestWindow).addGeneratedImage = addToGalleryMock;
 
 		const { container } = render(
 			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,

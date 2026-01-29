@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "vitest";
+import type { TestGlobal, TestWindow } from "../../test/types";
 import {
 	checkFilesExist,
 	dataUrlToBlob,
@@ -91,7 +92,10 @@ class MockDirectoryHandle implements MockFileSystemDirectoryHandle {
 			return this.files.get(name) as MockFileHandle;
 		}
 		if (!options?.create) {
-			throw new (global as any).DOMException("File not found", "NotFoundError");
+			const DOMExceptionConstructor = (global as TestGlobal).DOMException;
+			if (DOMExceptionConstructor) {
+				throw new DOMExceptionConstructor("File not found", "NotFoundError");
+			}
 		}
 		const handle = new MockFileHandle(name);
 		this.files.set(name, handle);
@@ -106,10 +110,13 @@ class MockDirectoryHandle implements MockFileSystemDirectoryHandle {
 			return this.subdirs.get(name) as MockDirectoryHandle;
 		}
 		if (!options?.create) {
-			throw new (global as any).DOMException(
-				"Directory not found",
-				"NotFoundError",
-			);
+			const DOMExceptionConstructor = (global as TestGlobal).DOMException;
+			if (DOMExceptionConstructor) {
+				throw new DOMExceptionConstructor(
+					"Directory not found",
+					"NotFoundError",
+				);
+			}
 		}
 		const handle = new MockDirectoryHandle(name);
 		this.subdirs.set(name, handle);
@@ -118,43 +125,54 @@ class MockDirectoryHandle implements MockFileSystemDirectoryHandle {
 }
 
 beforeEach(() => {
-	(global as any).window.showDirectoryPicker = undefined;
-	(global as any).DOMException = class DOMException extends Error {
+	(global.window as TestWindow).showDirectoryPicker = undefined;
+	(global as TestGlobal).DOMException = class DOMException extends Error {
 		constructor(
 			message: string,
 			public override name: string,
 		) {
 			super(message);
 		}
-	};
+	} as unknown as typeof DOMException;
 });
 
 afterEach(() => {
-	delete (global as any).window.showDirectoryPicker;
+	const win = global.window as TestWindow;
+	if (win && "showDirectoryPicker" in win) {
+		delete win.showDirectoryPicker;
+	}
 });
 
 test("isFileSystemAccessSupported returns true when showDirectoryPicker exists", () => {
-	(global as any).window.showDirectoryPicker = () => void 0;
+	(global.window as TestWindow).showDirectoryPicker = () =>
+		Promise.resolve({} as FileSystemDirectoryHandle);
 	expect(isFileSystemAccessSupported()).toBe(true);
 });
 
 test("isFileSystemAccessSupported returns false when showDirectoryPicker not available", () => {
-	delete (global as any).window.showDirectoryPicker;
+	const win = global.window as TestWindow;
+	if (win && "showDirectoryPicker" in win) {
+		delete win.showDirectoryPicker;
+	}
 	expect(isFileSystemAccessSupported()).toBe(false);
 });
 
 test("requestDirectory returns null when API not supported", async () => {
-	delete (global as any).window.showDirectoryPicker;
+	const win = global.window as TestWindow;
+	if (win && "showDirectoryPicker" in win) {
+		delete win.showDirectoryPicker;
+	}
 	const result = await requestDirectory();
 	expect(result).toBeNull();
 });
 
 test("requestDirectory returns null when user cancels", async () => {
-	const error = new (global as any).DOMException(
-		"User cancelled",
-		"AbortError",
-	);
-	(global as any).window.showDirectoryPicker = async () => {
+	const DOMExceptionConstructor = (global as TestGlobal).DOMException;
+	if (!DOMExceptionConstructor) {
+		throw new Error("DOMException not available");
+	}
+	const error = new DOMExceptionConstructor("User cancelled", "AbortError");
+	(global.window as TestWindow).showDirectoryPicker = async () => {
 		throw error;
 	};
 
@@ -164,11 +182,16 @@ test("requestDirectory returns null when user cancels", async () => {
 
 test("requestDirectory opens picker with readwrite mode", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
-	const options: any = {};
+	const options: { mode?: string; startIn?: string } = {};
 
-	(global as any).window.showDirectoryPicker = async (opts: any) => {
-		Object.assign(options, opts);
-		return dirHandle;
+	(global.window as TestWindow).showDirectoryPicker = async (opts?: {
+		mode?: string;
+		startIn?: string;
+	}) => {
+		if (opts) {
+			Object.assign(options, opts);
+		}
+		return dirHandle as unknown as FileSystemDirectoryHandle;
 	};
 
 	await requestDirectory(false);
@@ -180,14 +203,22 @@ test("saveFileToDirectory saves file to directory", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
 	const blob = new Blob(["test content"]);
 
-	await saveFileToDirectory(dirHandle as any, "test.txt", blob);
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		"test.txt",
+		blob,
+	);
 	expect(dirHandle.files.has("test.txt")).toBe(true);
 });
 
 test("saveFileToDirectory saves file with string content", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
 
-	await saveFileToDirectory(dirHandle as any, "test.txt", "test content");
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		"test.txt",
+		"test content",
+	);
 	expect(dirHandle.files.has("test.txt")).toBe(true);
 });
 
@@ -196,7 +227,7 @@ test("saveFileToDirectory creates subdirectories", async () => {
 	const blob = new Blob(["content"]);
 
 	await saveFileToDirectory(
-		dirHandle as any,
+		dirHandle as unknown as FileSystemDirectoryHandle,
 		"file.txt",
 		blob,
 		"path/to/nested",
@@ -213,7 +244,11 @@ test("saveFileToDirectory rejects invalid filename ../invalid", async () => {
 	const blob = new Blob(["content"]);
 
 	try {
-		await saveFileToDirectory(dirHandle as any, "../invalid", blob);
+		await saveFileToDirectory(
+			dirHandle as unknown as FileSystemDirectoryHandle,
+			"../invalid",
+			blob,
+		);
 		throw new Error("Should have thrown");
 	} catch (err) {
 		expect((err as Error).message).toContain("Invalid path segment");
@@ -225,7 +260,11 @@ test("saveFileToDirectory rejects filename with slashes", async () => {
 	const blob = new Blob(["content"]);
 
 	try {
-		await saveFileToDirectory(dirHandle as any, "file/name.txt", blob);
+		await saveFileToDirectory(
+			dirHandle as unknown as FileSystemDirectoryHandle,
+			"file/name.txt",
+			blob,
+		);
 		throw new Error("Should have thrown");
 	} catch (err) {
 		expect((err as Error).message).toContain("Invalid path segment");
@@ -238,7 +277,7 @@ test("saveFileToDirectory rejects invalid subPath with traversal", async () => {
 
 	try {
 		await saveFileToDirectory(
-			dirHandle as any,
+			dirHandle as unknown as FileSystemDirectoryHandle,
 			"file.txt",
 			blob,
 			"path/../evil",
@@ -254,7 +293,11 @@ test("saveFileToDirectory rejects empty filename", async () => {
 	const blob = new Blob(["content"]);
 
 	try {
-		await saveFileToDirectory(dirHandle as any, "   ", blob);
+		await saveFileToDirectory(
+			dirHandle as unknown as FileSystemDirectoryHandle,
+			"   ",
+			blob,
+		);
 		throw new Error("Should have thrown");
 	} catch (err) {
 		expect((err as Error).message).toContain("Invalid path segment");
@@ -266,7 +309,11 @@ test("saveFileToDirectory rejects dot filename", async () => {
 	const blob = new Blob(["content"]);
 
 	try {
-		await saveFileToDirectory(dirHandle as any, ".", blob);
+		await saveFileToDirectory(
+			dirHandle as unknown as FileSystemDirectoryHandle,
+			".",
+			blob,
+		);
 		throw new Error("Should have thrown");
 	} catch (err) {
 		expect((err as Error).message).toContain("Invalid path segment");
@@ -278,7 +325,11 @@ test("saveFileToDirectory rejects double-dot filename", async () => {
 	const blob = new Blob(["content"]);
 
 	try {
-		await saveFileToDirectory(dirHandle as any, "..", blob);
+		await saveFileToDirectory(
+			dirHandle as unknown as FileSystemDirectoryHandle,
+			"..",
+			blob,
+		);
 		throw new Error("Should have thrown");
 	} catch (err) {
 		expect((err as Error).message).toContain("Invalid path segment");
@@ -287,14 +338,21 @@ test("saveFileToDirectory rejects double-dot filename", async () => {
 
 test("checkFilesExist returns existing files", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
-	await saveFileToDirectory(dirHandle as any, "exists1.txt", "content");
-	await saveFileToDirectory(dirHandle as any, "exists2.txt", "content");
-
-	const result = await checkFilesExist(dirHandle as any, [
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
 		"exists1.txt",
+		"content",
+	);
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
 		"exists2.txt",
-		"missing.txt",
-	]);
+		"content",
+	);
+
+	const result = await checkFilesExist(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		["exists1.txt", "exists2.txt", "missing.txt"],
+	);
 	expect(result.length).toBe(2);
 	expect(result).toContain("exists1.txt");
 	expect(result).toContain("exists2.txt");
@@ -303,24 +361,30 @@ test("checkFilesExist returns existing files", async () => {
 test("checkFilesExist returns empty array for missing files", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
 
-	const result = await checkFilesExist(dirHandle as any, [
-		"missing1.txt",
-		"missing2.txt",
-	]);
+	const result = await checkFilesExist(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		["missing1.txt", "missing2.txt"],
+	);
 	expect(result.length).toBe(0);
 });
 
 test("checkFilesExist handles mixed existing and missing", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
-	await saveFileToDirectory(dirHandle as any, "file1.txt", "content1");
-	await saveFileToDirectory(dirHandle as any, "file3.txt", "content3");
-
-	const result = await checkFilesExist(dirHandle as any, [
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
 		"file1.txt",
-		"file2.txt",
+		"content1",
+	);
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
 		"file3.txt",
-		"file4.txt",
-	]);
+		"content3",
+	);
+
+	const result = await checkFilesExist(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		["file1.txt", "file2.txt", "file3.txt", "file4.txt"],
+	);
 	expect(result.length).toBe(2);
 	expect(result).toContain("file1.txt");
 	expect(result).toContain("file3.txt");
@@ -336,7 +400,10 @@ test("saveFilesToDirectory saves multiple files", async () => {
 		{ filename: "file3.txt", data: "content3" },
 	];
 
-	await saveFilesToDirectory(dirHandle as any, files);
+	await saveFilesToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		files,
+	);
 	expect(dirHandle.files.has("file1.txt")).toBe(true);
 	expect(dirHandle.files.has("file2.txt")).toBe(true);
 	expect(dirHandle.files.has("file3.txt")).toBe(true);
@@ -354,7 +421,11 @@ test("saveFilesToDirectory calls onProgress callback", async () => {
 		progressCalls.push([current, total, filename]);
 	};
 
-	await saveFilesToDirectory(dirHandle as any, files, onProgress);
+	await saveFilesToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		files,
+		onProgress,
+	);
 	expect(progressCalls.length).toBe(2);
 	expect(progressCalls[0]).toEqual([1, 2, "file1.txt"]);
 	expect(progressCalls[1]).toEqual([2, 2, "file2.txt"]);
@@ -367,7 +438,10 @@ test("saveFilesToDirectory saves files with subPath", async () => {
 		{ filename: "file2.txt", data: "content2", subPath: "dir2" },
 	];
 
-	await saveFilesToDirectory(dirHandle as any, files);
+	await saveFilesToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		files,
+	);
 	expect(dirHandle.subdirs.has("dir1")).toBe(true);
 	expect(dirHandle.subdirs.has("dir2")).toBe(true);
 });
@@ -457,7 +531,11 @@ test("saveFileToDirectory accepts valid filename characters", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
 	const blob = new Blob(["content"]);
 
-	await saveFileToDirectory(dirHandle as any, "valid-file_name.123", blob);
+	await saveFileToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		"valid-file_name.123",
+		blob,
+	);
 	expect(dirHandle.files.has("valid-file_name.123")).toBe(true);
 });
 
@@ -469,13 +547,19 @@ test("saveFilesToDirectory with empty files array", async () => {
 		subPath?: string;
 	}> = [];
 
-	await saveFilesToDirectory(dirHandle as any, files);
+	await saveFilesToDirectory(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		files,
+	);
 	expect(dirHandle.files.size).toBe(0);
 });
 
 test("checkFilesExist with empty filenames array", async () => {
 	const dirHandle = new MockDirectoryHandle("test");
 
-	const result = await checkFilesExist(dirHandle as any, []);
+	const result = await checkFilesExist(
+		dirHandle as unknown as FileSystemDirectoryHandle,
+		[],
+	);
 	expect(result.length).toBe(0);
 });

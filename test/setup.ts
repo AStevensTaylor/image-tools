@@ -6,6 +6,7 @@
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import type { TestWindow } from "./types";
 
 afterEach(() => {
 	cleanup();
@@ -23,7 +24,7 @@ class ResizeObserverMock {
 	}
 }
 
-global.ResizeObserver = ResizeObserverMock as any;
+global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 if (!global.window.matchMedia) {
 	global.window.matchMedia = (query: string) => ({
@@ -38,7 +39,7 @@ if (!global.window.matchMedia) {
 	});
 }
 
-(window as any).addGeneratedImage = (dataUrl: string, name?: string) => {
+(window as TestWindow).addGeneratedImage = (dataUrl: string, name?: string) => {
 	return undefined;
 };
 
@@ -117,7 +118,7 @@ class MockCanvas {
 
 	getContext(contextType: string) {
 		if (contextType === "2d") {
-			return new MockCanvasRenderingContext2D() as any;
+			return new MockCanvasRenderingContext2D() as unknown as CanvasRenderingContext2D;
 		}
 		return null;
 	}
@@ -132,9 +133,16 @@ class MockCanvas {
 }
 
 const originalCreateElement = document.createElement;
-document.createElement = function (tagName: string, ...args: any[]) {
+document.createElement = function <K extends keyof HTMLElementTagNameMap>(
+	tagName: K,
+	options?: ElementCreationOptions,
+): HTMLElement {
 	if (tagName.toLowerCase() === "canvas") {
-		return new MockCanvas() as any;
+		return new MockCanvas() as unknown as HTMLCanvasElement;
 	}
-	return originalCreateElement.call(document, tagName, ...args) as any;
+	return originalCreateElement.call(
+		document,
+		tagName,
+		options,
+	) as HTMLElementTagNameMap[K];
 };
