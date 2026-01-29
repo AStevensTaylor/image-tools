@@ -45,7 +45,7 @@ const SVG_SANITIZE_OPTIONS = {
 async function sanitizeSvgFile(file: File): Promise<File> {
 	const svgText = await file.text();
 	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
-	return new File([new Blob([sanitized])], file.name, {
+	return new File([sanitized], file.name, {
 		type: "image/svg+xml",
 	});
 }
@@ -216,8 +216,8 @@ export function App() {
 
 			setImages((prev) => [...prev, ...newImages]);
 
-			if (newImages.length > 0 && !selectedImageId) {
-				setSelectedImageId(newImages[0]?.id ?? null);
+			if (newImages.length > 0) {
+				setSelectedImageId((prev) => prev ?? newImages[0]?.id ?? null);
 			}
 		},
 		[selectedImageId],
@@ -284,15 +284,28 @@ export function App() {
 					URL.revokeObjectURL(removedImage.url);
 				}
 
-				if (selectedImageId === id) {
-					setSelectedImageId(updatedImages[0]?.id ?? null);
-				}
+			return updatedImages;
+			});
 
-				return updatedImages;
+			setSelectedImageId((prev) => {
+				if (prev === id) {
+					// Selection will be managed by the useEffect below
+					return null;
+				}
+				return prev;
 			});
 		},
-		[selectedImageId],
+		[],
 	);
+
+	// Ensure selectedImageId always points to an existing image
+	useEffect(() => {
+		if (images.length === 0) {
+			setSelectedImageId(null);
+		} else if (selectedImageId && !images.find((img) => img.id === selectedImageId)) {
+			setSelectedImageId(images[0]?.id ?? null);
+		}
+	}, [images, selectedImageId]);
 
 	return (
 		<div className="fixed inset-0 flex flex-col md:flex-row">

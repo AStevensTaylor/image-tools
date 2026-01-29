@@ -5,7 +5,7 @@ import {
 	Upload,
 	X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +84,11 @@ function ImageThumbnail({
 			setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
 		};
 		img.src = image.url;
+
+		return () => {
+			img.onload = null;
+			img.src = "";
+		};
 	}, [image.url]);
 
 	return (
@@ -103,6 +108,8 @@ function ImageThumbnail({
 				className="w-full h-full object-cover"
 			/>
 			<button
+				type="button"
+				aria-label={`Remove image ${image.file.name}`}
 				onClick={(e) => {
 					e.stopPropagation();
 					onRemove();
@@ -138,27 +145,33 @@ export function ImageGallery({
 }: ImageGalleryProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	const handleUploadClick = () => {
+	const handleUploadClick = useCallback(() => {
 		fileInputRef.current?.click();
-	};
+	}, []);
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files && e.target.files.length > 0) {
-			onImagesAdd(e.target.files);
-			e.target.value = "";
-		}
-	};
+	const handleFileChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			if (e.target.files && e.target.files.length > 0) {
+				onImagesAdd(e.target.files);
+				e.target.value = "";
+			}
+		},
+		[onImagesAdd],
+	);
 
-	const handleDrop = (e: React.DragEvent) => {
+	const handleDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault();
+			if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+				onImagesAdd(e.dataTransfer.files);
+			}
+		},
+		[onImagesAdd],
+	);
+
+	const handleDragOver = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
-		if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-			onImagesAdd(e.dataTransfer.files);
-		}
-	};
-
-	const handleDragOver = (e: React.DragEvent) => {
-		e.preventDefault();
-	};
+	}, []);
 
 	return (
 		<div className="h-full flex flex-col bg-card border-t md:border-t-0 md:border-r border-border">

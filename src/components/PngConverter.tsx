@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { WindowWithGallery } from "@/lib/gallery";
 
@@ -20,7 +20,7 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 	const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
 
-	const convertToPng = async () => {
+	const convertToPng = useCallback(async () => {
 		setIsConverting(true);
 
 		try {
@@ -38,7 +38,10 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 			canvas.height = img.naturalHeight;
 			setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
 
-			const ctx = canvas.getContext("2d")!;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				throw new Error("Failed to get canvas 2D context");
+			}
 			// Don't fill background - preserve transparency
 			ctx.drawImage(img, 0, 0);
 
@@ -49,9 +52,9 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 		} finally {
 			setIsConverting(false);
 		}
-	};
+	}, [imageUrl, setIsConverting, setPreviewUrl, setDimensions]);
 
-	const downloadPng = () => {
+	const downloadPng = useCallback(() => {
 		if (!previewUrl) return;
 
 		const link = document.createElement("a");
@@ -59,14 +62,14 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 		link.download = `${baseName}.png`;
 		link.href = previewUrl;
 		link.click();
-	};
+	}, [previewUrl, imageName]);
 
-	const addPreviewToGallery = () => {
+	const addPreviewToGallery = useCallback(() => {
 		const addToGallery = getAddToGallery();
 		if (!previewUrl || !addToGallery) return;
 		const baseName = imageName.replace(/\.[^.]+$/, "");
 		addToGallery(previewUrl, `${baseName}.png`);
-	};
+	}, [previewUrl, imageName, getAddToGallery]);
 
 	return (
 		<div className="h-full flex flex-col p-6">

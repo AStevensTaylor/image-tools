@@ -13,6 +13,28 @@ import {
 } from "@/lib/fileSystem";
 import { cn } from "@/lib/utils";
 
+/**
+ * Validates that an image URL is safe to load by checking protocol and format.
+ * Allows https, http, data, and blob URLs.
+ * @param url - The URL string to validate
+ * @returns True if the URL is valid and safe to load, false otherwise
+ */
+const isValidImageUrl = (url: string | undefined): boolean => {
+	if (!url || typeof url !== "string" || url.trim() === "") {
+		return false;
+	}
+
+	try {
+		const urlObj = new URL(url);
+		const allowedProtocols = ["https:", "http:", "data:", "blob:"];
+		return allowedProtocols.includes(urlObj.protocol);
+	} catch {
+		// Handle relative URLs or data URLs that might fail URL parsing
+		return url.startsWith("data:") || url.startsWith("blob:");
+	}
+};
+
+
 interface BatchCropProps {
 	imageUrl: string;
 	imageName: string;
@@ -326,6 +348,10 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 		// Enable high-quality image scaling
 		ctx.imageSmoothingEnabled = true;
 		ctx.imageSmoothingQuality = "high";
+
+		if (!isValidImageUrl(imageUrl)) {
+			return null;
+		}
 
 		const img = new Image();
 		img.crossOrigin = "anonymous";

@@ -313,11 +313,7 @@ export async function saveFileToDirectory(
 	});
 	const writable = await fileHandle.createWritable();
 
-	if (typeof data === "string") {
-		await writable.write(data);
-	} else {
-		await writable.write(data);
-	}
+	await writable.write(data);
 
 	await writable.close();
 }

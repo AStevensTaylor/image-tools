@@ -147,7 +147,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 	};
 
 	const setExportQuality = (exportQuality: number) => {
-		const newSettings = { ...settings, exportQuality };
+		const clampedQuality = Math.max(0, Math.min(1, exportQuality));
+		const newSettings = { ...settings, exportQuality: clampedQuality };
 		setSettings(newSettings);
 		saveSettings(newSettings);
 	};
