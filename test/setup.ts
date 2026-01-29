@@ -1,12 +1,11 @@
 /**
- * Test setup file for Bun tests
- * Configures happy-dom for browser-like environment and sets up mocks
+ * Test setup file for Vitest
+ * Configures jsdom for browser-like environment and sets up mocks
  */
-import { afterEach } from "bun:test";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { cleanup } from "@testing-library/react";
 
-GlobalRegistrator.register();
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+import "@testing-library/jest-dom/vitest";
 
 afterEach(() => {
 	cleanup();
