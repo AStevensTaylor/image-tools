@@ -1,3 +1,5 @@
+import { RASTER_MIME_TYPES } from "@/App";
+
 type PermissionMode = "read" | "readwrite";
 
 type PermissionDescriptor = {
@@ -376,7 +378,7 @@ export async function saveFilesToDirectory(
 }
 
 /**
- * Converts a data URL (Base64) to a Blob object.
+ * Converts a data URL to a Blob with MIME type validation.
  * @param dataUrl - The data URL string to convert
  * @returns Blob object containing the decoded data
  */
@@ -387,6 +389,17 @@ export function dataUrlToBlob(dataUrl: string): Blob {
 	}
 	const mimeMatch = header.match(/:(.*?);/);
 	const mime = mimeMatch ? mimeMatch[1] : "image/png";
+
+	// Validate MIME type against whitelist
+	if (
+		mimeMatch &&
+		!RASTER_MIME_TYPES.includes(mime as (typeof RASTER_MIME_TYPES)[number])
+	) {
+		throw new Error(
+			`Invalid MIME type: ${mime}. Allowed types: ${RASTER_MIME_TYPES.join(", ")}`,
+		);
+	}
+
 	const binary = atob(base64);
 	const array = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) {

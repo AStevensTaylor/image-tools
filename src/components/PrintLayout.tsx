@@ -425,7 +425,6 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 				CUT_MARKER_LENGTH * scale,
 				Math.max(2, maxMarkerLen),
 			);
-			const _gap = Math.max(0, Math.min(2, maxMarkerLen / 2));
 
 			// Only draw markers if there's enough margin space
 			if (markerLen > 1) {

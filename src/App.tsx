@@ -22,11 +22,17 @@ import type { WindowWithGallery } from "@/lib/gallery";
 import { cn } from "@/lib/utils";
 import "@/index.css";
 
-const RASTER_MIME_TYPES = [
+export const RASTER_MIME_TYPES = [
 	"image/png",
 	"image/jpeg",
 	"image/gif",
 	"image/webp",
+	"image/avif",
+	"image/heic",
+	"image/heif",
+	"image/bmp",
+	"image/tiff",
+	"image/x-icon",
 ] as const;
 
 const ALLOWED_MIME_TYPES = [...RASTER_MIME_TYPES, "image/svg+xml"] as const;
@@ -59,7 +65,7 @@ async function sanitizeSvgFile(file: File): Promise<File> {
 async function sanitizeSvgBlob(blob: Blob, fileName: string): Promise<File> {
 	const svgText = await blob.text();
 	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
-	return new File([new Blob([sanitized])], fileName, { type: "image/svg+xml" });
+	return new File([sanitized], fileName, { type: "image/svg+xml" });
 }
 
 type Tool =

@@ -347,7 +347,7 @@ export function GifFrameExtractor({
 		// Remove leading/trailing dots and spaces, replace unsafe characters
 		let sanitized = nameWithoutExt
 			.replace(/^[.\s]+|[.\s]+$/g, "") // Remove leading/trailing dots and spaces
-			.replace(/[<>:"|?*\\/]/g, "-") // Replace filesystem/path separators
+			.replace(/[<>:"|?*/]/g, "-") // Replace filesystem/path separators
 			.replace(/-+/g, "-") // Collapse consecutive hyphens
 			.slice(0, 200); // Enforce reasonable length limit
 

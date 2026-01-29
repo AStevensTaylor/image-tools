@@ -9,6 +9,14 @@ interface PngConverterProps {
 }
 
 /**
+ * Gets the addGeneratedImage function from the window object.
+ * @returns The addGeneratedImage function if available, undefined otherwise
+ */
+function getAddToGallery() {
+	return (window as WindowWithGallery).addGeneratedImage;
+}
+
+/**
  * PngConverter component converts any image format to PNG with transparency preservation.
  * Supports JPEG, WebP, GIF, BMP, SVG, AVIF, and more formats.
  * @param props - Component props containing imageUrl and imageName
@@ -18,11 +26,6 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 	const [isConverting, setIsConverting] = useState(false);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-	const getAddToGallery = useCallback(
-		() => (window as WindowWithGallery).addGeneratedImage,
-		[],
-	);
 
 	const convertToPng = useCallback(async () => {
 		setIsConverting(true);
@@ -73,7 +76,7 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 		if (!previewUrl || !addToGallery) return;
 		const baseName = imageName.replace(/\.[^.]+$/, "");
 		addToGallery(previewUrl, `${baseName}.png`);
-	}, [previewUrl, imageName, getAddToGallery]);
+	}, [previewUrl, imageName]);
 
 	return (
 		<div className="h-full flex flex-col p-6">
