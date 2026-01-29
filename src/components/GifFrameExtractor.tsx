@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Download, Play, Pause, ChevronLeft, ChevronRight, FolderDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettings, getExportMimeType, getExportExtension } from "@/lib/settings";
+import type { WindowWithGallery } from "@/lib/gallery";
 import { 
   isFileSystemAccessSupported, 
   requestDirectory, 
@@ -43,6 +44,7 @@ const getFrameDimensions = (frame: DecodedFrame) => {
 
 export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExtractorProps) {
   const { settings } = useSettings();
+  const addToGallery = (window as WindowWithGallery).addGeneratedImage;
   const [frames, setFrames] = useState<Frame[]>([]);
   const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -263,6 +265,15 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
     link.click();
   };
 
+  const addFrameToGallery = (frame: Frame) => {
+    if (!addToGallery) return;
+    const baseName = imageName.replace(/\.[^.]+$/, "");
+    const extension = getExportExtension(settings.exportFormat);
+    addToGallery(convertFrameToFormat(frame), `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`);
+  };
+
+  const FRAME_ADD_DELAY_MS = 50;
+
   const downloadSelected = () => {
     const selected = frames.filter((f) => selectedFrames.has(f.index));
     selected.forEach((frame, i) => {
@@ -425,6 +436,21 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             <Download className="size-4" />
             Download
           </Button>
+          {addToGallery && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const selected = frames.filter((f) => selectedFrames.has(f.index));
+                selected.forEach((frame, i) => {
+                  setTimeout(() => addFrameToGallery(frame), i * FRAME_ADD_DELAY_MS);
+                });
+              }}
+              disabled={selectedFrames.size === 0 || isSaving}
+            >
+              Add to Gallery
+            </Button>
+          )}
           {isFileSystemAccessSupported() && (
             <>
               <Button

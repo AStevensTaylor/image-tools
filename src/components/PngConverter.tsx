@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import type { WindowWithGallery } from "@/lib/gallery";
 
 interface PngConverterProps {
   imageUrl: string;
@@ -11,6 +12,7 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
   const [isConverting, setIsConverting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const addToGallery = (window as WindowWithGallery).addGeneratedImage;
 
   const convertToPng = async () => {
     setIsConverting(true);
@@ -51,6 +53,12 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
     link.download = `${baseName}.png`;
     link.href = previewUrl;
     link.click();
+  };
+
+  const addPreviewToGallery = () => {
+    if (!previewUrl || !addToGallery) return;
+    const baseName = imageName.replace(/\.[^.]+$/, "");
+    addToGallery(previewUrl, `${baseName}.png`);
   };
 
   return (
@@ -109,6 +117,11 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
                 <Download className="size-4" />
                 Download PNG
               </Button>
+              {addToGallery && (
+                <Button variant="outline" onClick={addPreviewToGallery}>
+                  Add to Gallery
+                </Button>
+              )}
             </>
           )}
         </div>

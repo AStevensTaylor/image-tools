@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Download, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettings, getExportMimeType, getExportExtension } from "@/lib/settings";
+import type { WindowWithGallery } from "@/lib/gallery";
 
 interface AspectRatioCropProps {
   imageUrl: string;
@@ -47,6 +48,7 @@ const aspectPresets: AspectPreset[] = [
 
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
   const { settings } = useSettings();
+  const addToGallery = (window as WindowWithGallery).addGeneratedImage;
   const isInitializedRef = useRef(false);
   const [aspectWidth, setAspectWidth] = useState("16");
   const [aspectHeight, setAspectHeight] = useState("9");
@@ -296,7 +298,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     }
   }, [isDragging, isResizing, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
-  const handleCrop = async () => {
+  const handleCrop = async (options?: { addToGallery?: boolean }) => {
     if (!cropBox || !imageRef.current) return;
 
     const scaleX = naturalSize.width / imageSize.width;
@@ -333,10 +335,17 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     const extension = getExportExtension(settings.exportFormat);
     const quality = settings.exportFormat === "png" ? undefined : settings.exportQuality;
 
-    const link = document.createElement("a");
+    const dataUrl = canvas.toDataURL(mimeType, quality);
     const baseFileName = imageName.replace(/\.[^.]+$/, "");
+
+    if (options?.addToGallery && addToGallery) {
+      addToGallery(dataUrl, `cropped-${baseFileName}.${extension}`);
+      return;
+    }
+
+    const link = document.createElement("a");
     link.download = `cropped-${baseFileName}.${extension}`;
-    link.href = canvas.toDataURL(mimeType, quality);
+    link.href = dataUrl;
     link.click();
   };
 
@@ -379,6 +388,11 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
               <Download className="size-4" />
               Download Crop
             </Button>
+            {addToGallery && (
+              <Button size="sm" variant="outline" onClick={() => handleCrop({ addToGallery: true })} disabled={!cropBox}>
+                Add to Gallery
+              </Button>
+            )}
           </div>
         </div>
 
