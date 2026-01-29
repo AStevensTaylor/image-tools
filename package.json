@@ -1,7 +1,7 @@
 {
 	"name": "image-tools",
 	"version": "0.1.0",
-	"license": "https://unlicense.org/",
+	"license": "Unlicense",
 	"type": "module",
 	"scripts": {
 		"dev": "bun --hot src/index.ts",
