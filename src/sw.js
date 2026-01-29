@@ -37,17 +37,18 @@ self.addEventListener("fetch", (event) => {
 			// Return cached response if available
 			if (cachedResponse) {
 				// Fetch in background to update cache
-				fetch(request)
+				const backgroundFetch = fetch(request)
 					.then((response) => {
 						if (response.ok) {
-							caches.open(CACHE_NAME).then((cache) => {
-								cache.put(request, response);
+							return caches.open(CACHE_NAME).then((cache) => {
+								return cache.put(request, response);
 							});
 						}
 					})
 					.catch(() => {
 						// Silently fail - we already have a cached response to return
 					});
+				event.waitUntil(backgroundFetch);
 				return cachedResponse;
 			}
 

@@ -293,11 +293,14 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 
 		const img = new Image();
 		img.crossOrigin = "anonymous";
-		img.src = imageUrl;
 
-		await new Promise((resolve) => {
-			img.onload = resolve;
+		const loadSuccess = await new Promise<boolean>((resolve) => {
+			img.onload = () => resolve(true);
+			img.onerror = () => resolve(false);
+			img.src = imageUrl;
 		});
+
+		if (!loadSuccess) return null;
 
 		// Draw cropped region scaled to fill the output canvas
 		ctx.drawImage(

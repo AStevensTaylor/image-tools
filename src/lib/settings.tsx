@@ -29,12 +29,49 @@ const SettingsContext = createContext<SettingsContextType | undefined>(
 
 const STORAGE_KEY = "image-tools-settings";
 
+const VALID_THEMES: readonly Theme[] = ["light", "dark", "system"];
+const VALID_EXPORT_FORMATS: readonly ExportFormat[] = ["png", "webp", "jpg"];
+
+function validateSettings(parsed: unknown): Partial<Settings> {
+	const validated: Partial<Settings> = {};
+
+	if (
+		parsed &&
+		typeof parsed === "object" &&
+		"theme" in parsed &&
+		VALID_THEMES.includes(parsed.theme as Theme)
+	) {
+		validated.theme = parsed.theme as Theme;
+	}
+
+	if (
+		parsed &&
+		typeof parsed === "object" &&
+		"exportFormat" in parsed &&
+		VALID_EXPORT_FORMATS.includes(parsed.exportFormat as ExportFormat)
+	) {
+		validated.exportFormat = parsed.exportFormat as ExportFormat;
+	}
+
+	if (
+		parsed &&
+		typeof parsed === "object" &&
+		"exportQuality" in parsed &&
+		typeof parsed.exportQuality === "number"
+	) {
+		validated.exportQuality = Math.min(Math.max(parsed.exportQuality, 0), 1);
+	}
+
+	return validated;
+}
+
 function getStoredSettings(): Settings {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored) {
 			const parsed = JSON.parse(stored);
-			return { ...defaultSettings, ...parsed };
+			const validated = validateSettings(parsed);
+			return { ...defaultSettings, ...validated };
 		}
 	} catch (error) {
 		console.error("Failed to load settings from localStorage:", error);
@@ -44,7 +81,9 @@ function getStoredSettings(): Settings {
 
 function saveSettings(settings: Settings) {
 	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+		const validated = validateSettings(settings);
+		const toSave = { ...defaultSettings, ...validated };
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 	} catch (error) {
 		console.error("Failed to save settings to localStorage:", error);
 	}

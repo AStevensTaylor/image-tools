@@ -226,6 +226,20 @@ export async function requestDirectory(
 	}
 }
 
+const SAFE_PATH_SEGMENT_REGEX = /^[a-zA-Z0-9._-]+$/;
+
+function validatePathSegment(segment: string): void {
+	const trimmed = segment.trim();
+	if (
+		!trimmed ||
+		trimmed === "." ||
+		trimmed === ".." ||
+		!SAFE_PATH_SEGMENT_REGEX.test(trimmed)
+	) {
+		throw new Error(`Invalid path segment: "${segment}"`);
+	}
+}
+
 // Save a file to the directory
 export async function saveFileToDirectory(
 	dirHandle: FileSystemDirectoryHandle,
@@ -233,17 +247,22 @@ export async function saveFileToDirectory(
 	data: Blob | string,
 	subPath?: string,
 ): Promise<void> {
+	// Validate filename
+	const trimmedFilename = filename.trim();
+	validatePathSegment(trimmedFilename);
+
 	let targetDir = dirHandle;
 
 	// Create subdirectories if specified
 	if (subPath) {
 		const parts = subPath.split("/").filter(Boolean);
 		for (const part of parts) {
+			validatePathSegment(part);
 			targetDir = await targetDir.getDirectoryHandle(part, { create: true });
 		}
 	}
 
-	const fileHandle = await targetDir.getFileHandle(filename, { create: true });
+	const fileHandle = await targetDir.getFileHandle(trimmedFilename, { create: true });
 	const writable = await fileHandle.createWritable();
 
 	if (typeof data === "string") {

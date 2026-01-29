@@ -307,11 +307,12 @@ export function GifFrameExtractor({
 	};
 
 	const FRAME_ADD_DELAY_MS = 50;
+	const FRAME_DOWNLOAD_DELAY_MS = 100;
 
 	const downloadSelected = () => {
 		const selected = frames.filter((f) => selectedFrames.has(f.index));
 		selected.forEach((frame, i) => {
-			setTimeout(() => downloadFrame(frame), i * 100);
+			setTimeout(() => downloadFrame(frame), i * FRAME_DOWNLOAD_DELAY_MS);
 		});
 	};
 

@@ -77,8 +77,6 @@ class MaxRectsPacker {
 	private freeRects: Rect[] = [];
 
 	constructor(pageWidth: number, pageHeight: number) {
-		this.pageWidth = pageWidth;
-		this.pageHeight = pageHeight;
 		this.freeRects = [{ x: 0, y: 0, width: pageWidth, height: pageHeight }];
 	}
 

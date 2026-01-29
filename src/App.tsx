@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -20,6 +21,39 @@ import { Button } from "./components/ui/button";
 import type { WindowWithGallery } from "./lib/gallery";
 import { cn } from "./lib/utils";
 import "./index.css";
+
+const RASTER_MIME_TYPES = [
+	"image/png",
+	"image/jpeg",
+	"image/gif",
+	"image/webp",
+] as const;
+
+const ALLOWED_MIME_TYPES = [
+	...RASTER_MIME_TYPES,
+	"image/svg+xml",
+] as const;
+
+// Sanitize SVG content using DOMPurify
+async function sanitizeSvgFile(file: File): Promise<File> {
+	const svgText = await file.text();
+	const sanitized = DOMPurify.sanitize(svgText, {
+		USE_PROFILES: { svg: true, svgFilters: true },
+		ADD_TAGS: ["use"],
+		ADD_ATTR: ["xlink:href", "href"],
+	});
+	return new File([sanitized], file.name, { type: "image/svg+xml" });
+}
+
+async function sanitizeSvgBlob(blob: Blob, fileName: string): Promise<File> {
+	const svgText = await blob.text();
+	const sanitized = DOMPurify.sanitize(svgText, {
+		USE_PROFILES: { svg: true, svgFilters: true },
+		ADD_TAGS: ["use"],
+		ADD_ATTR: ["xlink:href", "href"],
+	});
+	return new File([sanitized], fileName, { type: "image/svg+xml" });
+}
 
 type Tool =
 	| "crop"
@@ -143,14 +177,31 @@ export function App() {
 	}, []);
 
 	const handleImagesAdd = useCallback(
-		(files: FileList) => {
-			const newImages: ImageItem[] = Array.from(files)
-				.filter((file) => file.type.startsWith("image/"))
-				.map((file) => ({
+		async (files: FileList) => {
+			const newImages: ImageItem[] = [];
+
+			for (const file of Array.from(files)) {
+				if (
+					!ALLOWED_MIME_TYPES.includes(
+						file.type as (typeof ALLOWED_MIME_TYPES)[number],
+					)
+				) {
+					continue;
+				}
+
+				let processedFile = file;
+
+				// Sanitize SVG files with DOMPurify
+				if (file.type === "image/svg+xml") {
+					processedFile = await sanitizeSvgFile(file);
+				}
+
+				newImages.push({
 					id: crypto.randomUUID(),
-					file,
-					url: URL.createObjectURL(file),
-				}));
+					file: processedFile,
+					url: URL.createObjectURL(processedFile),
+				});
+			}
 
 			setImages((prev) => [...prev, ...newImages]);
 
@@ -166,13 +217,26 @@ export function App() {
 			try {
 				const response = await fetch(dataUrl);
 				const blob = await response.blob();
-				if (!blob.type.startsWith("image/")) return;
+				if (
+					!ALLOWED_MIME_TYPES.includes(
+						blob.type as (typeof ALLOWED_MIME_TYPES)[number],
+					)
+				)
+					return;
 
-				const extensionFromMime = blob.type.split("/")[1] || "png";
+				const extensionFromMime = blob.type.split("/")[1]?.replace("+xml", "") || "png";
 				const fileName =
 					suggestedName || `output-${Date.now()}.${extensionFromMime}`;
 
-				const file = new File([blob], fileName, { type: blob.type });
+				let file: File;
+
+				// Sanitize SVG content with DOMPurify
+				if (blob.type === "image/svg+xml") {
+					file = await sanitizeSvgBlob(blob, fileName);
+				} else {
+					file = new File([blob], fileName, { type: blob.type });
+				}
+
 				const image: ImageItem = {
 					id: crypto.randomUUID(),
 					file,
