@@ -9,7 +9,7 @@ import { PrintLayout } from "./components/PrintLayout";
 import { Button } from "./components/ui/button";
 import { Crop, Film, Image as ImageIcon, FileImage, Layers, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { cn } from "./lib/utils";
-import { WindowWithGallery } from "./lib/gallery";
+import type { WindowWithGallery } from "./lib/gallery";
 import "./index.css";
 
 type Tool = "crop" | "gif-frames" | "png-convert" | "batch-crop" | "print-layout";

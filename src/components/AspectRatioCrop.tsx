@@ -384,7 +384,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
               <RotateCcw className="size-4" />
               Reset
             </Button>
-            <Button size="sm" onClick={handleCrop} disabled={!cropBox}>
+            <Button size="sm" onClick={() => handleCrop()} disabled={!cropBox}>
               <Download className="size-4" />
               Download Crop
             </Button>
