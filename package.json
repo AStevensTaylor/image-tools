@@ -9,8 +9,8 @@
 		"build": "bun run build.ts",
 		"deploy": "bun run build && wrangler deploy",
 		"lint": "biome check .",
-    "lint:ci": "biome ci .",
-    "fmt": "biome format ."
+		"lint:ci": "biome ci .",
+		"fmt": "biome format ."
 	},
 	"dependencies": {
 		"@radix-ui/react-dialog": "^1.1.15",
