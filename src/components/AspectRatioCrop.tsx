@@ -110,6 +110,20 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     }
   }, [imageSize.width, imageSize.height, aspectRatio, initializeCropBox]);
 
+  // Reset crop box when image changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    initializeCropBox();
+  }, [imageUrl, initializeCropBox]);
+
+  // Reset crop box when aspect ratio changes
+  useEffect(() => {
+    if (isInitializedRef.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      initializeCropBox();
+    }
+  }, [aspectRatio, initializeCropBox]);
+
   const handleImageLoad = () => {
     if (imageRef.current) {
       const rect = imageRef.current.getBoundingClientRect();
