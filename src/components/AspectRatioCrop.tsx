@@ -522,6 +522,12 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 				</div>
 			</div>
 
+			{urlError && (
+				<div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+					{urlError}
+				</div>
+			)}
+
 			<div
 				ref={containerRef}
 				className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg overflow-hidden"

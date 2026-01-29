@@ -8,7 +8,7 @@ import {
 	Play,
 	X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -75,7 +75,10 @@ export function GifFrameExtractor({
 	fileType,
 }: GifFrameExtractorProps) {
 	const { settings } = useSettings();
-	const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
+	const getAddToGallery = useCallback(
+		() => (window as WindowWithGallery).addGeneratedImage,
+		[],
+	);
 	const [frames, setFrames] = useState<Frame[]>([]);
 	const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
 	const [currentFrame, setCurrentFrame] = useState(0);
@@ -100,6 +103,14 @@ export function GifFrameExtractor({
 
 			try {
 				const response = await fetch(imageUrl, { signal: controller.signal });
+			if (!response.ok) {
+				if (isActive) {
+					setError(
+						`Failed to load image: ${response.status} ${response.statusText}`,
+					);
+				}
+				return;
+			}
 				const buffer = await response.arrayBuffer();
 
 				if (!isActive) return;
@@ -150,7 +161,13 @@ export function GifFrameExtractor({
 			const canvas = document.createElement("canvas");
 			canvas.width = width;
 			canvas.height = height;
-			const ctx = canvas.getContext("2d")!;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				if (isActive) {
+					setError("Failed to get 2D context from canvas");
+				}
+				return;
+			}
 
 			const extractedFrames: Frame[] = [];
 
@@ -175,7 +192,10 @@ export function GifFrameExtractor({
 				const tempCanvas = document.createElement("canvas");
 				tempCanvas.width = frame.dims.width;
 				tempCanvas.height = frame.dims.height;
-				const tempCtx = tempCanvas.getContext("2d")!;
+				const tempCtx = tempCanvas.getContext("2d");
+				if (!tempCtx) {
+					continue;
+				}
 				tempCtx.putImageData(imageData, 0, 0);
 
 				ctx.drawImage(tempCanvas, frame.dims.left, frame.dims.top);
@@ -184,7 +204,10 @@ export function GifFrameExtractor({
 				const frameCanvas = document.createElement("canvas");
 				frameCanvas.width = width;
 				frameCanvas.height = height;
-				const frameCtx = frameCanvas.getContext("2d")!;
+				const frameCtx = frameCanvas.getContext("2d");
+				if (!frameCtx) {
+					continue;
+				}
 				frameCtx.putImageData(fullFrameData, 0, 0);
 
 				extractedFrames.push({
@@ -256,7 +279,10 @@ export function GifFrameExtractor({
 					const canvas = document.createElement("canvas");
 					canvas.width = width;
 					canvas.height = height;
-					const ctx = canvas.getContext("2d")!;
+					const ctx = canvas.getContext("2d");
+					if (!ctx) {
+						continue;
+					}
 					ctx.drawImage(frame, 0, 0);
 
 					const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -305,125 +331,140 @@ export function GifFrameExtractor({
 		return () => clearTimeout(timeout);
 	}, [isPlaying, currentFrame, frames]);
 
-	const toggleFrame = (index: number) => {
-		setSelectedFrames((prev) => {
-			const next = new Set(prev);
-			if (next.has(index)) {
-				next.delete(index);
-			} else {
-				next.add(index);
-			}
-			return next;
-		});
-	};
+	/**
+	 * Sanitizes a filename by removing directory components and unsafe characters.
+	 * @param name - The original filename to sanitize
+	 * @returns A safe filename with no path separators or control characters
+	 */
+	const sanitizeBaseName = useCallback((name: string): string => {
+		// Get the last path segment (handle both / and \ separators)
+		const basename = name.split(/[\/\\]/).pop() || "image";
 
-	const selectAll = () => {
+		// Remove file extension
+		const nameWithoutExt = basename.replace(/\.[^.]+$/, "");
+
+		// Remove leading/trailing dots and spaces, replace unsafe characters
+		const sanitized = nameWithoutExt
+			.replace(/^[.\s]+|[.\s]+$/g, "") // Remove leading/trailing dots and spaces
+			.replace(/[<>:"|?*\\/{\x00-\x1f]/g, "-") // Replace filesystem/path separators and control chars
+			.replace(/-+/g, "-") // Collapse consecutive hyphens
+			.slice(0, 200); // Enforce reasonable length limit
+
+		return sanitized || "image";
+	}, []);
+
+	const toggleFrame = useCallback(
+		(index: number) => {
+			setSelectedFrames((prev) => {
+				const next = new Set(prev);
+				if (next.has(index)) {
+					next.delete(index);
+				} else {
+					next.add(index);
+				}
+				return next;
+			});
+		},
+		[],
+	);
+
+	const selectAll = useCallback(() => {
 		setSelectedFrames(new Set(frames.map((f) => f.index)));
-	};
+	}, [frames]);
 
-	const selectNone = () => {
+	const selectNone = useCallback(() => {
 		setSelectedFrames(new Set());
-	};
+	}, []);
 
-	const selectEveryNth = (n: number) => {
-		setSelectedFrames(
-			new Set(frames.filter((_, i) => i % n === 0).map((f) => f.index)),
-		);
-	};
+	const selectEveryNth = useCallback(
+		(n: number) => {
+			setSelectedFrames(
+				new Set(frames.filter((_, i) => i % n === 0).map((f) => f.index)),
+			);
+		},
+		[frames],
+	);
 
-	const convertFrameToFormat = (frame: Frame): string => {
-		const canvas = document.createElement("canvas");
-		canvas.width = gifDimensions.width;
-		canvas.height = gifDimensions.height;
-		const ctx = canvas.getContext("2d")!;
-		ctx.putImageData(frame.imageData, 0, 0);
+	const downloadFrame = useCallback(
+		(frame: Frame) => {
+			const link = document.createElement("a");
+			const baseName = sanitizeBaseName(imageName);
+			const extension = getExportExtension(settings.exportFormat);
+			link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`;
+			link.href = convertFrameToFormat(frame);
+			link.click();
+		},
+		[imageName, settings.exportFormat, sanitizeBaseName],
+	);
 
-		const mimeType = getExportMimeType(settings.exportFormat);
-		const quality =
-			settings.exportFormat === "png" ? undefined : settings.exportQuality;
-		return canvas.toDataURL(mimeType, quality);
-	};
+	const addFrameToGallery = useCallback(
+		(frame: Frame) => {
+			const addToGallery = getAddToGallery();
+			if (!addToGallery) return;
+			const baseName = sanitizeBaseName(imageName);
+			const extension = getExportExtension(settings.exportFormat);
+			addToGallery(
+				convertFrameToFormat(frame),
+				`${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
+			);
+		},
+		[imageName, settings.exportFormat, sanitizeBaseName],
+	);
 
-	const downloadFrame = (frame: Frame) => {
-		const link = document.createElement("a");
-		const baseName = imageName.replace(/\.[^.]+$/, "");
-		const extension = getExportExtension(settings.exportFormat);
-		link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`;
-		link.href = convertFrameToFormat(frame);
-		link.click();
-	};
-
-	const addFrameToGallery = (frame: Frame) => {
-		const addToGallery = getAddToGallery();
-		if (!addToGallery) return;
-		const baseName = imageName.replace(/\.[^.]+$/, "");
-		const extension = getExportExtension(settings.exportFormat);
-		addToGallery(
-			convertFrameToFormat(frame),
-			`${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
-		);
-	};
-
-	const downloadSelected = () => {
+	const downloadSelected = useCallback(() => {
 		const selected = frames.filter((f) => selectedFrames.has(f.index));
 		selected.forEach((frame, i) => {
 			setTimeout(() => downloadFrame(frame), i * FRAME_DOWNLOAD_DELAY_MS);
 		});
-	};
+	}, [frames, selectedFrames, downloadFrame]);
 
-	// Check for cached directory on mount
-	useEffect(() => {
-		const checkCache = async () => {
-			const hasCache = await hasCachedDirectory();
-			setHasCachedDir(hasCache);
-		};
-		checkCache();
-	}, []);
+	const saveToDirectory = useCallback(
+		async () => {
+			const dirHandle = await requestDirectory();
+			if (!dirHandle) return;
 
-	const saveToDirectory = async () => {
-		const dirHandle = await requestDirectory();
-		if (!dirHandle) return;
+			// Update cache status after getting directory
+			setHasCachedDir(true);
 
-		// Update cache status after getting directory
-		setHasCachedDir(true);
+			const selected = frames.filter((f) => selectedFrames.has(f.index));
+			if (selected.length === 0) return;
 
-		const selected = frames.filter((f) => selectedFrames.has(f.index));
-		if (selected.length === 0) return;
+			setIsSaving(true);
+			setSaveProgress({ current: 0, total: selected.length });
 
-		setIsSaving(true);
-		setSaveProgress({ current: 0, total: selected.length });
+			try {
+				const baseName = sanitizeBaseName(imageName);
+				const extension = getExportExtension(settings.exportFormat);
+				const files = selected.map((frame) => ({
+					filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
+					data: dataUrlToBlob(convertFrameToFormat(frame)),
+					subPath: "frames",
+				}));
 
-		try {
-			const baseName = imageName.replace(/\.[^.]+$/, "");
-			const extension = getExportExtension(settings.exportFormat);
-			const files = selected.map((frame) => ({
-				filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
-				data: dataUrlToBlob(convertFrameToFormat(frame)),
-				subPath: "frames",
-			}));
+				await saveFilesToDirectory(dirHandle, files, (current, total) => {
+					setSaveProgress({ current, total });
+				});
+			} catch (err) {
+				console.error("Failed to save frames:", err);
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[frames, selectedFrames, imageName, settings.exportFormat, sanitizeBaseName],
+	);
 
-			await saveFilesToDirectory(dirHandle, files, (current, total) => {
-				setSaveProgress({ current, total });
-			});
-		} catch (err) {
-			console.error("Failed to save frames:", err);
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const handleResetDirectory = async () => {
+	const handleResetDirectory = useCallback(async () => {
 		await clearCachedDirectory();
 		setHasCachedDir(false);
-	};
+	}, []);
 
-	const goToPrevFrame = () => {
+	const goToPrevFrame = useCallback(() => {
 		setCurrentFrame((prev) => (prev - 1 + frames.length) % frames.length);
-	};
+	}, [frames.length]);
 
-	const goToNextFrame = () => {
+	const goToNextFrame = useCallback(() => {
 		setCurrentFrame((prev) => (prev + 1) % frames.length);
-	};
+	}, [frames.length]);
 
 	if (isLoading) {
 		return (
@@ -464,7 +505,7 @@ export function GifFrameExtractor({
 					{frames[currentFrame] && (
 						<img
 							src={frames[currentFrame].dataUrl}
-							alt={`Frame ${currentFrame}`}
+							alt={`Frame ${currentFrame + 1}`}
 							className="max-w-full max-h-full object-contain"
 							style={{ imageRendering: "pixelated" }}
 						/>

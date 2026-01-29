@@ -420,44 +420,43 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 			// Draw cut markers - limit length to half the image margin to avoid overlap
 			ctx.strokeStyle = "#000000";
 			ctx.lineWidth = scale > 5 ? 1 : 0.5;
-			const maxMarkerLen = (imageMargin * scale) / 2 - 1;
+			const maxMarkerLen = Math.max(0, (imageMargin * scale) / 2 - 1);
 			const markerLen = Math.min(
 				CUT_MARKER_LENGTH * scale,
 				Math.max(2, maxMarkerLen),
 			);
-			const gap = Math.min(2, maxMarkerLen / 2);
+			const gap = Math.max(0, Math.min(2, maxMarkerLen / 2));
 
 			// Only draw markers if there's enough margin space
 			if (markerLen > 1) {
+				// Draw L-shaped marks at each corner
+				// Lines meet exactly at the corner point, stroke is centered on coordinates
+
 				// Top-left corner
 				ctx.beginPath();
 				ctx.moveTo(x - markerLen, y);
-				ctx.lineTo(x - gap, y);
-				ctx.moveTo(x, y - markerLen);
-				ctx.lineTo(x, y - gap);
+				ctx.lineTo(x, y);
+				ctx.lineTo(x, y - markerLen);
 				ctx.stroke();
 
 				// Top-right corner
 				ctx.beginPath();
-				ctx.moveTo(x + w + gap, y);
-				ctx.lineTo(x + w + markerLen, y);
-				ctx.moveTo(x + w, y - markerLen);
-				ctx.lineTo(x + w, y - gap);
+				ctx.moveTo(x + w + markerLen, y);
+				ctx.lineTo(x + w, y);
+				ctx.lineTo(x + w, y - markerLen);
 				ctx.stroke();
 
 				// Bottom-left corner
 				ctx.beginPath();
 				ctx.moveTo(x - markerLen, y + h);
-				ctx.lineTo(x - gap, y + h);
-				ctx.moveTo(x, y + h + gap);
+				ctx.lineTo(x, y + h);
 				ctx.lineTo(x, y + h + markerLen);
 				ctx.stroke();
 
 				// Bottom-right corner
 				ctx.beginPath();
-				ctx.moveTo(x + w + gap, y + h);
-				ctx.lineTo(x + w + markerLen, y + h);
-				ctx.moveTo(x + w, y + h + gap);
+				ctx.moveTo(x + w + markerLen, y + h);
+				ctx.lineTo(x + w, y + h);
 				ctx.lineTo(x + w, y + h + markerLen);
 				ctx.stroke();
 			}
@@ -646,7 +645,6 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 						CUT_MARKER_LENGTH,
 						Math.max(1, imageMargin / 2 - 0.5),
 					);
-					const gap = Math.min(0.5, markerLen / 4);
 					const x = packedImg.x;
 					const y = packedImg.y;
 					const w = packedImg.rotated ? imgH : imgW;
@@ -656,21 +654,22 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 						pdf.setDrawColor(0);
 						pdf.setLineWidth(0.1);
 
+						// L-shaped marks at each corner, meeting at corner point
 						// Top-left corner
-						pdf.line(x - markerLen, y, x - gap, y);
-						pdf.line(x, y - markerLen, x, y - gap);
+						pdf.line(x - markerLen, y, x, y);
+						pdf.line(x, y - markerLen, x, y);
 
 						// Top-right corner
-						pdf.line(x + w + gap, y, x + w + markerLen, y);
-						pdf.line(x + w, y - markerLen, x + w, y - gap);
+						pdf.line(x + w, y, x + w + markerLen, y);
+						pdf.line(x + w, y - markerLen, x + w, y);
 
 						// Bottom-left corner
-						pdf.line(x - markerLen, y + h, x - gap, y + h);
-						pdf.line(x, y + h + gap, x, y + h + markerLen);
+						pdf.line(x - markerLen, y + h, x, y + h);
+						pdf.line(x, y + h, x, y + h + markerLen);
 
 						// Bottom-right corner
-						pdf.line(x + w + gap, y + h, x + w + markerLen, y + h);
-						pdf.line(x + w, y + h + gap, x + w, y + h + markerLen);
+						pdf.line(x + w, y + h, x + w + markerLen, y + h);
+						pdf.line(x + w, y + h, x + w, y + h + markerLen);
 					}
 				} catch (err) {
 					console.error("Failed to add image to PDF:", err);
@@ -773,71 +772,72 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
 				container.appendChild(img);
 
-				// Add cut markers
-				const markerLen = Math.min(
-					CUT_MARKER_LENGTH,
-					Math.max(1, imageMargin / 2 - 0.5),
-				);
-				const gap = Math.min(0.5, markerLen / 4);
-				const markerThickness = 0.2;
+// Add cut markers - L-shaped marks centered on corner
+					const markerLen = Math.min(
+						CUT_MARKER_LENGTH,
+						Math.max(1, imageMargin / 2 - 0.5),
+					);
+					const markerThickness = 0.2;
+					const halfThickness = markerThickness / 2;
 
-				if (markerLen > 0.5) {
-					const markers = [
-						// Top-left horizontal
-						{
-							left: -markerLen,
-							top: -markerThickness / 2,
-							width: markerLen - gap,
-							height: markerThickness,
-						},
-						// Top-left vertical
-						{
-							left: -markerThickness / 2,
-							top: -markerLen,
-							width: markerThickness,
-							height: markerLen - gap,
-						},
-						// Top-right horizontal
-						{
-							left: w + gap,
-							top: -markerThickness / 2,
-							width: markerLen - gap,
-							height: markerThickness,
-						},
-						// Top-right vertical
-						{
-							left: w - markerThickness / 2,
-							top: -markerLen,
-							width: markerThickness,
-							height: markerLen - gap,
-						},
-						// Bottom-left horizontal
-						{
-							left: -markerLen,
-							top: h - markerThickness / 2,
-							width: markerLen - gap,
-							height: markerThickness,
-						},
-						// Bottom-left vertical
-						{
-							left: -markerThickness / 2,
-							top: h + gap,
-							width: markerThickness,
-							height: markerLen - gap,
-						},
-						// Bottom-right horizontal
-						{
-							left: w + gap,
-							top: h - markerThickness / 2,
-							width: markerLen - gap,
-							height: markerThickness,
-						},
-						// Bottom-right vertical
-						{
-							left: w - markerThickness / 2,
-							top: h + gap,
-							width: markerThickness,
-							height: markerLen - gap,
+					if (markerLen > 0.5) {
+						// Each marker is positioned so its center aligns with the image edge
+						const markers = [
+							// Top-left horizontal (ends at corner)
+							{
+								left: -markerLen,
+								top: -halfThickness,
+								width: markerLen,
+								height: markerThickness,
+							},
+							// Top-left vertical (ends at corner)
+							{
+								left: -halfThickness,
+								top: -markerLen,
+								width: markerThickness,
+								height: markerLen,
+							},
+							// Top-right horizontal (starts at corner)
+							{
+								left: w,
+								top: -halfThickness,
+								width: markerLen,
+								height: markerThickness,
+							},
+							// Top-right vertical (ends at corner)
+							{
+								left: w - halfThickness,
+								top: -markerLen,
+								width: markerThickness,
+								height: markerLen,
+							},
+							// Bottom-left horizontal (ends at corner)
+							{
+								left: -markerLen,
+								top: h - halfThickness,
+								width: markerLen,
+								height: markerThickness,
+							},
+							// Bottom-left vertical (starts at corner)
+							{
+								left: -halfThickness,
+								top: h,
+								width: markerThickness,
+								height: markerLen,
+							},
+							// Bottom-right horizontal (starts at corner)
+							{
+								left: w,
+								top: h - halfThickness,
+								width: markerLen,
+								height: markerThickness,
+							},
+							// Bottom-right vertical (starts at corner)
+							{
+								left: w - halfThickness,
+								top: h,
+								width: markerThickness,
+								height: markerLen,
 						},
 					];
 
@@ -891,9 +891,9 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 				<h2 className="text-xl font-semibold">Print Layout</h2>
 			</div>
 
-			<div className="flex gap-6 flex-1 min-h-0">
+			<div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
 				{/* Settings panel */}
-				<div className="w-72 flex flex-col gap-4 overflow-y-auto">
+				<div className="w-full lg:w-72 flex flex-col gap-4 overflow-y-auto">
 					{/* Page size settings */}
 					<div className="space-y-3">
 						<h3 className="text-sm font-medium">Page Size</h3>
