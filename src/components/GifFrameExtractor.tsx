@@ -596,6 +596,8 @@ export function GifFrameExtractor({
 									setCurrentFrame(frame.index);
 									setIsPlaying(false);
 								}}
+								aria-label={`Frame ${frame.index + 1}`}
+								aria-pressed={selectedFrames.has(frame.index)}
 								className={cn(
 									"relative flex-shrink-0 h-full aspect-square rounded border-2 overflow-hidden transition-all",
 									selectedFrames.has(frame.index)

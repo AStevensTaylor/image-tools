@@ -69,9 +69,32 @@ const defaultPresets: CropPreset[] = [
 	},
 ];
 
-// Helper function to extract filename without extension
+// Helper function to extract and sanitize filename without extension
 const extractFilenamePrefix = (filename: string): string => {
-	return filename.replace(/\.[^.]+$/, "");
+	if (!filename || typeof filename !== "string") {
+		return "image";
+	}
+
+	// Extract basename (remove directory components)
+	const basename = filename.split(/[\\/]/).pop() || "image";
+
+	// Remove file extension
+	const withoutExt = basename.replace(/\.[^.]+$/, "");
+
+	// Normalize Unicode (NFKC) and remove unsafe characters
+	const normalized = withoutExt
+		.normalize("NFKC")
+		.replace(/[^\w\-./]/g, "_") // Allow alphanumeric, hyphen, underscore, dot, slash
+		.replace(/\/+/g, "_") // Replace slashes with underscore
+		.replace(/\.+/g, "_") // Replace dots with underscore
+		.replace(/_+/g, "_") // Collapse consecutive underscores
+		.replace(/^_|_$/g, ""); // Trim underscores from start/end
+
+	// Enforce max length and return with fallback
+	const maxLength = 50;
+	const trimmed = normalized.slice(0, maxLength);
+
+	return trimmed || "image";
 };
 
 export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
@@ -330,8 +353,8 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 				link.download = `${filenamePrefix}_${preset.filename}.png`;
 				link.href = URL.createObjectURL(blob);
 				link.click();
-				URL.revokeObjectURL(link.href);
 				await new Promise((r) => setTimeout(r, 100));
+				URL.revokeObjectURL(link.href);
 			}
 		}
 	};

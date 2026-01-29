@@ -1,5 +1,5 @@
 import { Download, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,22 @@ interface AspectPreset {
 	category: string;
 }
 
+// Validate image URL is safe to load
+const isValidImageUrl = (url: string | undefined): boolean => {
+	if (!url || typeof url !== "string" || url.trim() === "") {
+		return false;
+	}
+
+	try {
+		const urlObj = new URL(url);
+		const allowedProtocols = ["https:", "http:", "data:", "blob:"];
+		return allowedProtocols.includes(urlObj.protocol);
+	} catch {
+		// Handle relative URLs or data URLs that might fail URL parsing
+		return url.startsWith("data:") || url.startsWith("blob:");
+	}
+};
+
 const aspectPresets: AspectPreset[] = [
 	// Film & Video
 	{ label: "16:9", width: 16, height: 9, category: "Film" },
@@ -52,7 +68,10 @@ const aspectPresets: AspectPreset[] = [
 
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 	const { settings } = useSettings();
-	const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
+	const [imageUrlValid, setImageUrlValid] = useState(() =>
+		isValidImageUrl(imageUrl),
+	);
+	const [urlError, setUrlError] = useState<string | null>(null);
 	const [aspectWidth, setAspectWidth] = useState("16");
 	const [aspectHeight, setAspectHeight] = useState("9");
 	const [activePreset, setActivePreset] = useState<string | null>("16:9");
@@ -65,6 +84,12 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
 	const containerRef = useRef<HTMLDivElement>(null);
 	const imageRef = useRef<HTMLImageElement>(null);
+
+	// Memoize addToGallery availability to avoid accessing window on every render
+	const addToGallery = useMemo(() => {
+		if (typeof window === "undefined") return null;
+		return (window as WindowWithGallery).addGeneratedImage;
+	}, []);
 
 	const aspectRatio =
 		parseFloat(aspectWidth) / parseFloat(aspectHeight) || 16 / 9;
@@ -82,7 +107,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		const widthNum = typeof width === "string" ? parseFloat(width) : width;
 		const heightNum = typeof height === "string" ? parseFloat(height) : height;
 
-		const safWidth =
+		const safeWidth =
 			isNaN(widthNum) || widthNum <= 0
 				? aspectWidth
 				: Math.max(1, widthNum).toString();
@@ -91,7 +116,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 				? aspectHeight
 				: Math.max(1, heightNum).toString();
 
-		setAspectWidth(safWidth);
+		setAspectWidth(safeWidth);
 		setAspectHeight(safeHeight);
 		setActivePreset(null);
 	};
@@ -121,6 +146,22 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 			height: boxHeight,
 		});
 	}, [imageSize, aspectRatio]);
+
+	useEffect(() => {
+		// Validate imageUrl whenever it changes
+		const valid = isValidImageUrl(imageUrl);
+		setImageUrlValid(valid);
+		if (!valid) {
+			setUrlError(
+				imageUrl
+					? "Invalid image URL. Only https://, http://, data:, and blob: URLs are allowed."
+					: "No image URL provided",
+			);
+			setCropBox(null);
+		} else {
+			setUrlError(null);
+		}
+	}, [imageUrl]);
 
 	useEffect(() => {
 		if (imageSize.width && imageSize.height) {
@@ -171,39 +212,9 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		};
 	}, []);
 
-	const handleMouseDown = (e: React.MouseEvent, action: "drag" | "resize") => {
-		e.preventDefault();
-		const pos = getMousePosition(e);
-		setDragStart(pos);
-
-		if (action === "drag") {
-			setIsDragging(true);
-		} else {
-			setIsResizing(true);
-		}
-	};
-
-	const handleTouchStart = (e: React.TouchEvent, action: "drag" | "resize") => {
-		e.preventDefault();
-		const pos = getTouchPosition(e);
-		setDragStart(pos);
-
-		if (action === "drag") {
-			setIsDragging(true);
-		} else {
-			setIsResizing(true);
-		}
-	};
-
-	const handleMouseMove = useCallback(
-		(e: MouseEvent) => {
-			if (!cropBox || (!isDragging && !isResizing)) return;
-
-			const rect = imageRef.current?.getBoundingClientRect();
-			if (!rect) return;
-
-			const x = e.clientX - rect.left;
-			const y = e.clientY - rect.top;
+	const updateCropForPointer = useCallback(
+		(x: number, y: number) => {
+			if (!cropBox) return;
 
 			if (isDragging) {
 				const deltaX = x - dragStart.x;
@@ -246,6 +257,45 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		[cropBox, isDragging, isResizing, dragStart, aspectRatio, imageSize],
 	);
 
+	const handleMouseDown = (e: React.MouseEvent, action: "drag" | "resize") => {
+		e.preventDefault();
+		const pos = getMousePosition(e);
+		setDragStart(pos);
+
+		if (action === "drag") {
+			setIsDragging(true);
+		} else {
+			setIsResizing(true);
+		}
+	};
+
+	const handleTouchStart = (e: React.TouchEvent, action: "drag" | "resize") => {
+		e.preventDefault();
+		const pos = getTouchPosition(e);
+		setDragStart(pos);
+
+		if (action === "drag") {
+			setIsDragging(true);
+		} else {
+			setIsResizing(true);
+		}
+	};
+
+	const handleMouseMove = useCallback(
+		(e: MouseEvent) => {
+			if (!cropBox || (!isDragging && !isResizing)) return;
+
+			const rect = imageRef.current?.getBoundingClientRect();
+			if (!rect) return;
+
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			updateCropForPointer(x, y);
+		},
+		[cropBox, isDragging, isResizing, updateCropForPointer],
+	);
+
 	const handleTouchMove = useCallback(
 		(e: TouchEvent) => {
 			if (!cropBox || (!isDragging && !isResizing) || e.touches.length === 0)
@@ -254,54 +304,9 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 			e.preventDefault(); // Prevent scrolling while dragging/resizing
 
 			const { x, y } = getTouchPosition(e);
-
-			if (isDragging) {
-				const deltaX = x - dragStart.x;
-				const deltaY = y - dragStart.y;
-
-				let newX = cropBox.x + deltaX;
-				let newY = cropBox.y + deltaY;
-
-				newX = Math.max(0, Math.min(newX, imageSize.width - cropBox.width));
-				newY = Math.max(0, Math.min(newY, imageSize.height - cropBox.height));
-
-				setCropBox({ ...cropBox, x: newX, y: newY });
-				setDragStart({ x, y });
-			} else if (isResizing) {
-				const deltaX = x - (cropBox.x + cropBox.width);
-				const deltaY = y - (cropBox.y + cropBox.height);
-
-				let newWidth = cropBox.width + deltaX;
-				let newHeight = newWidth / aspectRatio;
-
-				if (deltaY > deltaX / aspectRatio) {
-					newHeight = cropBox.height + deltaY;
-					newWidth = newHeight * aspectRatio;
-				}
-
-				newWidth = Math.max(
-					50,
-					Math.min(newWidth, imageSize.width - cropBox.x),
-				);
-				newHeight = newWidth / aspectRatio;
-
-				if (cropBox.y + newHeight > imageSize.height) {
-					newHeight = imageSize.height - cropBox.y;
-					newWidth = newHeight * aspectRatio;
-				}
-
-				setCropBox({ ...cropBox, width: newWidth, height: newHeight });
-			}
+			updateCropForPointer(x, y);
 		},
-		[
-			cropBox,
-			isDragging,
-			isResizing,
-			dragStart,
-			aspectRatio,
-			imageSize,
-			getTouchPosition,
-		],
+		[cropBox, isDragging, isResizing, getTouchPosition, updateCropForPointer],
 	);
 
 	const handleMouseUp = useCallback(() => {
@@ -337,7 +342,12 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 	]);
 
 	const handleCrop = async (options?: { addToGallery?: boolean }) => {
-		if (!cropBox || !imageRef.current) return;
+		if (!cropBox || !imageRef.current || !imageUrlValid) {
+			if (!imageUrlValid) {
+				setUrlError("Cannot crop: Invalid image URL");
+			}
+			return;
+		}
 
 		const scaleX = naturalSize.width / imageSize.width;
 		const scaleY = naturalSize.height / imageSize.height;
@@ -351,7 +361,18 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
 		const img = new Image();
 		img.crossOrigin = "anonymous";
-		img.src = imageUrl;
+
+		try {
+			// Validate URL before assigning to img.src
+			if (!isValidImageUrl(imageUrl)) {
+				throw new Error("Invalid image URL for cropping");
+			}
+			img.src = imageUrl;
+		} catch (err) {
+			throw new Error(
+				`Failed to load image: ${err instanceof Error ? err.message : "Invalid URL"}`,
+			);
+		}
 
 		try {
 			await new Promise<void>((resolve, reject) => {
@@ -397,7 +418,6 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 
 			const baseFileName = imageName.replace(/\.[^.]+$/, "");
 
-			const addToGallery = getAddToGallery();
 			if (options?.addToGallery && addToGallery) {
 				addToGallery(dataUrl, `cropped-${baseFileName}.${extension}`);
 				return;
@@ -455,7 +475,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 							<Download className="size-4" />
 							Download Crop
 						</Button>
-						{getAddToGallery() && (
+						{addToGallery && (
 							<Button
 								size="sm"
 								variant="outline"
@@ -499,92 +519,103 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 				ref={containerRef}
 				className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg overflow-hidden"
 			>
-				<div className="relative inline-block max-w-full max-h-full">
-					<img
-						ref={imageRef}
-						src={imageUrl}
-						alt="Image to crop"
-						onLoad={handleImageLoad}
-						className="max-w-full max-h-[calc(100vh-200px)] object-contain select-none"
-						draggable={false}
-					/>
+				{imageUrlValid ? (
+					<div className="relative inline-block max-w-full max-h-full">
+						<img
+							ref={imageRef}
+							src={imageUrl}
+							alt="Image to crop"
+							onLoad={handleImageLoad}
+							className="max-w-full max-h-[calc(100vh-200px)] object-contain select-none"
+							draggable={false}
+						/>
 
-					{cropBox && (
-						<>
-							{/* Darkened overlay outside crop area */}
-							<div
-								className="absolute inset-0 pointer-events-none"
-								style={{
-									background: `linear-gradient(to right, 
+						{cropBox && (
+							<>
+								{/* Darkened overlay outside crop area */}
+								<div
+									className="absolute inset-0 pointer-events-none"
+									style={{
+										background: `linear-gradient(to right, 
                     rgba(0,0,0,0.5) ${cropBox.x}px, 
                     transparent ${cropBox.x}px, 
                     transparent ${cropBox.x + cropBox.width}px, 
                     rgba(0,0,0,0.5) ${cropBox.x + cropBox.width}px)`,
-								}}
-							/>
-							<div
-								className="absolute pointer-events-none"
-								style={{
-									left: cropBox.x,
-									top: 0,
-									width: cropBox.width,
-									height: cropBox.y,
-									background: "rgba(0,0,0,0.5)",
-								}}
-							/>
-							<div
-								className="absolute pointer-events-none"
-								style={{
-									left: cropBox.x,
-									top: cropBox.y + cropBox.height,
-									width: cropBox.width,
-									height: imageSize.height - (cropBox.y + cropBox.height),
-									background: "rgba(0,0,0,0.5)",
-								}}
-							/>
-
-							{/* Crop box */}
-							<div
-								className="absolute border-2 border-white cursor-move"
-								style={{
-									left: cropBox.x,
-									top: cropBox.y,
-									width: cropBox.width,
-									height: cropBox.height,
-									boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
-								}}
-								onMouseDown={(e) => handleMouseDown(e, "drag")}
-								onTouchStart={(e) => handleTouchStart(e, "drag")}
-							>
-								{/* Grid lines */}
-								<div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-									{[...Array(9)].map((_, i) => (
-										<div key={i} className="border border-white/30" />
-									))}
-								</div>
-
-								{/* Resize handle */}
-								<div
-									className="absolute -right-2 -bottom-2 w-4 h-4 bg-white rounded-full cursor-se-resize shadow-md"
-									onMouseDown={(e) => {
-										e.stopPropagation();
-										handleMouseDown(e, "resize");
 									}}
-									onTouchStart={(e) => {
-										e.stopPropagation();
-										handleTouchStart(e, "resize");
+								/>
+								<div
+									className="absolute pointer-events-none"
+									style={{
+										left: cropBox.x,
+										top: 0,
+										width: cropBox.width,
+										height: cropBox.y,
+										background: "rgba(0,0,0,0.5)",
+									}}
+								/>
+								<div
+									className="absolute pointer-events-none"
+									style={{
+										left: cropBox.x,
+										top: cropBox.y + cropBox.height,
+										width: cropBox.width,
+										height: imageSize.height - (cropBox.y + cropBox.height),
+										background: "rgba(0,0,0,0.5)",
 									}}
 								/>
 
-								{/* Corner indicators */}
-								<div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-white" />
-								<div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-white" />
-								<div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-white" />
-								<div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white" />
-							</div>
-						</>
-					)}
-				</div>
+								{/* Crop box */}
+								<div
+									className="absolute border-2 border-white cursor-move"
+									style={{
+										left: cropBox.x,
+										top: cropBox.y,
+										width: cropBox.width,
+										height: cropBox.height,
+										boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)",
+									}}
+									onMouseDown={(e) => handleMouseDown(e, "drag")}
+									onTouchStart={(e) => handleTouchStart(e, "drag")}
+								>
+									{/* Grid lines */}
+									<div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+										{[...Array(9)].map((_, i) => (
+											<div key={i} className="border border-white/30" />
+										))}
+									</div>
+
+									{/* Resize handle */}
+									<div
+										className="absolute -right-2 -bottom-2 w-4 h-4 bg-white rounded-full cursor-se-resize shadow-md"
+										onMouseDown={(e) => {
+											e.stopPropagation();
+											handleMouseDown(e, "resize");
+										}}
+										onTouchStart={(e) => {
+											e.stopPropagation();
+											handleTouchStart(e, "resize");
+										}}
+									/>
+
+									{/* Corner indicators */}
+									<div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-white" />
+									<div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-white" />
+									<div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-white" />
+									<div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-white" />
+								</div>
+							</>
+						)}
+					</div>
+				) : (
+					<div className="flex flex-col items-center justify-center gap-4 text-center">
+						<div className="text-muted-foreground">
+							<p className="font-semibold">Invalid Image</p>
+							<p className="text-sm">
+								{urlError || "No valid image URL provided"}
+							</p>
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 	);
