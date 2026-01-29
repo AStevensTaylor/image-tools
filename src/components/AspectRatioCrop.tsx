@@ -342,10 +342,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 	]);
 
 	const handleCrop = async (options?: { addToGallery?: boolean }) => {
-		if (!cropBox || !imageRef.current || !imageUrlValid) {
-			if (!imageUrlValid) {
-				setUrlError("Cannot crop: Invalid image URL");
-			}
+		if (!cropBox || !imageRef.current) {
 			return;
 		}
 
@@ -365,16 +362,12 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		try {
 			// Validate URL before assigning to img.src
 			if (!isValidImageUrl(imageUrl)) {
-				throw new Error("Invalid image URL for cropping");
+				setUrlError("Cannot crop: Invalid image URL");
+				return;
 			}
-			img.src = imageUrl;
-		} catch (err) {
-			throw new Error(
-				`Failed to load image: ${err instanceof Error ? err.message : "Invalid URL"}`,
-			);
-		}
 
-		try {
+			img.src = imageUrl;
+
 			await new Promise<void>((resolve, reject) => {
 				const cleanup = () => {
 					img.onload = null;
@@ -429,6 +422,9 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 			link.click();
 		} catch (error) {
 			console.error("Crop operation failed:", error);
+			setUrlError(
+				error instanceof Error ? error.message : "Failed to crop image",
+			);
 		}
 	};
 
