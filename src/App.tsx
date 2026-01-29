@@ -141,7 +141,6 @@ export function App() {
 	useEffect(() => {
 		if (!isInitializedRef.current) {
 			isInitializedRef.current = true;
-			// eslint-disable-next-line react-hooks/set-state-in-effect
 			updateScrollButtons();
 		}
 
