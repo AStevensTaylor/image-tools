@@ -17,7 +17,14 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 │   ├── frontend.tsx     # React entry point (actual entry, not index.ts)
 │   ├── App.tsx          # Main orchestrator with tool routing
 │   └── index.html       # HTML entry (loads frontend.tsx)
+├── test/                # Unit test setup and shared mocks
+│   ├── setup.ts         # Test environment config (happy-dom, mocks)
+│   └── matchers.d.ts    # TypeScript types for test matchers
+├── e2e/                 # End-to-end tests (Playwright)
+│   └── fixtures/        # Test assets (images, etc.)
 ├── build.ts             # Custom Bun build script (NOT standard bundler)
+├── bunfig.toml          # Bun test configuration
+├── playwright.config.ts # Playwright E2E test configuration
 ├── dist/                # Build output (Cloudflare Workers assets)
 ├── styles/globals.css   # Tailwind v4 config (CSS-first, not JS config)
 └── wrangler.jsonc       # Cloudflare Workers deployment config
@@ -34,7 +41,8 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 | Add UI component | `src/components/ui/` | shadcn/ui patterns (see ui/AGENTS.md) |
 | Build configuration | `build.ts` | Custom script, not vite.config |
 | Linting/formatting | `biome.jsonc` | Biome (not ESLint/Prettier) |
-| Entry point issue | `package.json` dev/start | ⚠️ BROKEN: references non-existent src/index.ts |
+| Unit test setup | `test/setup.ts` | DOM mocks, matcher extensions |
+| E2E test setup | `playwright.config.ts` | Browser configs, webServer |
 
 ## CONVENTIONS
 
@@ -103,14 +111,23 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 - OKLCH color space (modern)
 - Custom dark mode variant: `:is(.dark *)`
 
+**Testing:**
+- **Framework:** Bun built-in test runner with happy-dom
+- **Component tests:** @testing-library/react + @testing-library/user-event
+- **E2E tests:** Playwright (chromium, firefox, webkit)
+- **Test location:** Colocated (`.test.ts` next to source files)
+- **Coverage:** Text + lcov reporters to `./coverage`
+- **Mocked APIs:** ResizeObserver, matchMedia, Canvas, IndexedDB
+- **NO TESTS for:** `src/components/ui/` (shadcn/ui vendor code)
+
 ## COMMANDS
 
 ```bash
-# Development (⚠️ BROKEN - references non-existent src/index.ts)
-bun dev              # Should serve index.html, but script is broken
+# Development
+bun dev              # Serve index.html with hot reload
+bun start            # Local production mode
 
 # Production
-bun start            # Local production mode
 bun run build        # Build to dist/ via custom build.ts
 bun run deploy       # Build + deploy to Cloudflare Workers
 
@@ -120,8 +137,11 @@ bun run lint:ci      # CI mode with GitHub reporter
 bun run fmt          # Format code with Biome
 
 # Testing
-# ⚠️ NO TESTS - No test framework configured
-# Bun has built-in test runner available but unused
+bun test             # Run unit tests (Bun test runner + happy-dom)
+bun test:watch       # Watch mode for unit tests
+bun test:coverage    # Run tests with coverage report
+bun test:e2e         # Run E2E tests (Playwright)
+bun test:e2e:ui      # Run E2E tests in UI mode (Playwright)
 
 # Dependencies
 bun install          # Install dependencies (uses bun.lock)
@@ -130,9 +150,7 @@ bun install          # Install dependencies (uses bun.lock)
 ## NOTES
 
 **Critical Issues:**
-1. **dev/start scripts broken:** `package.json` references `src/index.ts` which doesn't exist. Actual entry is `src/frontend.tsx` loaded from `src/index.html`.
-2. **No testing infrastructure:** Zero tests, no framework configured.
-3. **No git hooks:** Linting only enforced in CI, not pre-commit.
+1. **No git hooks:** Linting only enforced in CI, not pre-commit.
 
 **Notable Quirks:**
 - Service worker in src/ as .js (only JS file in TypeScript project)
