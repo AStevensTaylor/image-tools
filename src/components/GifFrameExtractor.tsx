@@ -21,6 +21,7 @@ import {
 } from "@/lib/fileSystem";
 import type { WindowWithGallery } from "@/lib/gallery";
 import {
+	type ExportFormat,
 	getExportExtension,
 	getExportMimeType,
 	useSettings,
@@ -103,14 +104,14 @@ export function GifFrameExtractor({
 
 			try {
 				const response = await fetch(imageUrl, { signal: controller.signal });
-			if (!response.ok) {
-				if (isActive) {
-					setError(
-						`Failed to load image: ${response.status} ${response.statusText}`,
-					);
+				if (!response.ok) {
+					if (isActive) {
+						setError(
+							`Failed to load image: ${response.status} ${response.statusText}`,
+						);
+					}
+					return;
 				}
-				return;
-			}
 				const buffer = await response.arrayBuffer();
 
 				if (!isActive) return;
@@ -338,35 +339,70 @@ export function GifFrameExtractor({
 	 */
 	const sanitizeBaseName = useCallback((name: string): string => {
 		// Get the last path segment (handle both / and \ separators)
-		const basename = name.split(/[\/\\]/).pop() || "image";
+		const basename = name.split(/[/\\]/).pop() || "image";
 
 		// Remove file extension
 		const nameWithoutExt = basename.replace(/\.[^.]+$/, "");
 
 		// Remove leading/trailing dots and spaces, replace unsafe characters
-		const sanitized = nameWithoutExt
+		let sanitized = nameWithoutExt
 			.replace(/^[.\s]+|[.\s]+$/g, "") // Remove leading/trailing dots and spaces
-			.replace(/[<>:"|?*\\/{\x00-\x1f]/g, "-") // Replace filesystem/path separators and control chars
+			.replace(/[<>:"|?*\\/]/g, "-") // Replace filesystem/path separators
 			.replace(/-+/g, "-") // Collapse consecutive hyphens
 			.slice(0, 200); // Enforce reasonable length limit
 
+		// Remove control characters
+		sanitized = Array.from(sanitized)
+			.filter((char) => char.charCodeAt(0) >= 32)
+			.join("");
+
 		return sanitized || "image";
 	}, []);
+	/**
+	 * Converts a frame's data URL to the specified export format.
+	 * Handles format conversion from PNG to WebP or JPEG if needed.
+	 * @param frame - The frame containing the PNG dataUrl
+	 * @param format - Export format (png, webp, or jpg)
+	 * @param quality - JPEG/WebP quality (0-1), defaults to settings quality
+	 * @returns Data URL in the requested format
+	 */
+	const convertFrameToFormat = useCallback(
+		(frame: Frame, format?: ExportFormat, quality?: number): string => {
+			const exportFormat = format || settings.exportFormat;
+			const exportQuality = quality ?? settings.exportQuality;
 
-	const toggleFrame = useCallback(
-		(index: number) => {
-			setSelectedFrames((prev) => {
-				const next = new Set(prev);
-				if (next.has(index)) {
-					next.delete(index);
-				} else {
-					next.add(index);
-				}
-				return next;
-			});
+			// PNG frames are already in PNG format
+			if (exportFormat === "png") {
+				return frame.dataUrl;
+			}
+
+			// Convert to WebP or JPEG if needed
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				return frame.dataUrl; // Fallback to PNG if conversion fails
+			}
+
+			canvas.width = frame.imageData.width;
+			canvas.height = frame.imageData.height;
+			ctx.putImageData(frame.imageData, 0, 0);
+
+			const mimeType = getExportMimeType(exportFormat);
+			return canvas.toDataURL(mimeType, exportQuality);
 		},
-		[],
+		[settings.exportFormat, settings.exportQuality],
 	);
+	const toggleFrame = useCallback((index: number) => {
+		setSelectedFrames((prev) => {
+			const next = new Set(prev);
+			if (next.has(index)) {
+				next.delete(index);
+			} else {
+				next.add(index);
+			}
+			return next;
+		});
+	}, []);
 
 	const selectAll = useCallback(() => {
 		setSelectedFrames(new Set(frames.map((f) => f.index)));
@@ -394,7 +430,7 @@ export function GifFrameExtractor({
 			link.href = convertFrameToFormat(frame);
 			link.click();
 		},
-		[imageName, settings.exportFormat, sanitizeBaseName],
+		[imageName, settings.exportFormat, sanitizeBaseName, convertFrameToFormat],
 	);
 
 	const addFrameToGallery = useCallback(
@@ -408,7 +444,13 @@ export function GifFrameExtractor({
 				`${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
 			);
 		},
-		[imageName, settings.exportFormat, sanitizeBaseName],
+		[
+			imageName,
+			settings.exportFormat,
+			sanitizeBaseName,
+			getAddToGallery,
+			convertFrameToFormat,
+		],
 	);
 
 	const downloadSelected = useCallback(() => {
@@ -418,40 +460,44 @@ export function GifFrameExtractor({
 		});
 	}, [frames, selectedFrames, downloadFrame]);
 
-	const saveToDirectory = useCallback(
-		async () => {
-			const dirHandle = await requestDirectory();
-			if (!dirHandle) return;
+	const saveToDirectory = useCallback(async () => {
+		const dirHandle = await requestDirectory();
+		if (!dirHandle) return;
 
-			// Update cache status after getting directory
-			setHasCachedDir(true);
+		// Update cache status after getting directory
+		setHasCachedDir(true);
 
-			const selected = frames.filter((f) => selectedFrames.has(f.index));
-			if (selected.length === 0) return;
+		const selected = frames.filter((f) => selectedFrames.has(f.index));
+		if (selected.length === 0) return;
 
-			setIsSaving(true);
-			setSaveProgress({ current: 0, total: selected.length });
+		setIsSaving(true);
+		setSaveProgress({ current: 0, total: selected.length });
 
-			try {
-				const baseName = sanitizeBaseName(imageName);
-				const extension = getExportExtension(settings.exportFormat);
-				const files = selected.map((frame) => ({
-					filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
-					data: dataUrlToBlob(convertFrameToFormat(frame)),
-					subPath: "frames",
-				}));
+		try {
+			const baseName = sanitizeBaseName(imageName);
+			const extension = getExportExtension(settings.exportFormat);
+			const files = selected.map((frame) => ({
+				filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
+				data: dataUrlToBlob(convertFrameToFormat(frame)),
+				subPath: "frames",
+			}));
 
-				await saveFilesToDirectory(dirHandle, files, (current, total) => {
-					setSaveProgress({ current, total });
-				});
-			} catch (err) {
-				console.error("Failed to save frames:", err);
-			} finally {
-				setIsSaving(false);
-			}
-		},
-		[frames, selectedFrames, imageName, settings.exportFormat, sanitizeBaseName],
-	);
+			await saveFilesToDirectory(dirHandle, files, (current, total) => {
+				setSaveProgress({ current, total });
+			});
+		} catch (err) {
+			console.error("Failed to save frames:", err);
+		} finally {
+			setIsSaving(false);
+		}
+	}, [
+		frames,
+		selectedFrames,
+		imageName,
+		settings.exportFormat,
+		sanitizeBaseName,
+		convertFrameToFormat,
+	]);
 
 	const handleResetDirectory = useCallback(async () => {
 		await clearCachedDirectory();

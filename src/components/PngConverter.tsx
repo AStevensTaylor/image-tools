@@ -18,7 +18,11 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 	const [isConverting, setIsConverting] = useState(false);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-	const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
+
+	const getAddToGallery = useCallback(
+		() => (window as WindowWithGallery).addGeneratedImage,
+		[],
+	);
 
 	const convertToPng = useCallback(async () => {
 		setIsConverting(true);
@@ -52,7 +56,7 @@ export function PngConverter({ imageUrl, imageName }: PngConverterProps) {
 		} finally {
 			setIsConverting(false);
 		}
-	}, [imageUrl, setIsConverting, setPreviewUrl, setDimensions]);
+	}, [imageUrl]);
 
 	const downloadPng = useCallback(() => {
 		if (!previewUrl) return;
