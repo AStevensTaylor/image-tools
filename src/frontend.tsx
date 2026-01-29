@@ -17,30 +17,35 @@ import "./icon.svg" with { type: "file" };
 
 // Register service worker
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register(swUrl as string)
-      .then(registration => {
-        console.log("Service Worker registered with scope:", registration.scope);
-      }).catch(error => {
-        console.error("Service Worker registration failed:", error);
-      });
-  });
+	window.addEventListener("load", () => {
+		navigator.serviceWorker
+			.register(swUrl as string)
+			.then((registration) => {
+				console.log(
+					"Service Worker registered with scope:",
+					registration.scope,
+				);
+			})
+			.catch((error) => {
+				console.error("Service Worker registration failed:", error);
+			});
+	});
 }
 
 const elem = document.getElementById("root")!;
 const app = (
-  <StrictMode>
-    <SettingsProvider>
-      <App />
-    </SettingsProvider>
-  </StrictMode>
+	<StrictMode>
+		<SettingsProvider>
+			<App />
+		</SettingsProvider>
+	</StrictMode>
 );
 
 if (import.meta.hot) {
-  // With hot module reloading, `import.meta.hot.data` is persisted.
-  const root = (import.meta.hot.data.root ??= createRoot(elem));
-  root.render(app);
+	// With hot module reloading, `import.meta.hot.data` is persisted.
+	const root = (import.meta.hot.data.root ??= createRoot(elem));
+	root.render(app);
 } else {
-  // The hot module reloading API is not available in production.
-  createRoot(elem).render(app);
+	// The hot module reloading API is not available in production.
+	createRoot(elem).render(app);
 }
