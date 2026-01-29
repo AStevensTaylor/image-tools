@@ -18,12 +18,12 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 │   ├── App.tsx          # Main orchestrator with tool routing
 │   └── index.html       # HTML entry (loads frontend.tsx)
 ├── test/                # Unit test setup and shared mocks
-│   ├── setup.ts         # Test environment config (happy-dom, mocks)
+│   ├── setup.ts         # Test environment config (jsdom, mocks)
 │   └── matchers.d.ts    # TypeScript types for test matchers
+├── vitest.config.ts     # Vitest test configuration
 ├── e2e/                 # End-to-end tests (Playwright)
 │   └── fixtures/        # Test assets (images, etc.)
 ├── build.ts             # Custom Bun build script (NOT standard bundler)
-├── bunfig.toml          # Bun test configuration
 ├── playwright.config.ts # Playwright E2E test configuration
 ├── dist/                # Build output (Cloudflare Workers assets)
 ├── styles/globals.css   # Tailwind v4 config (CSS-first, not JS config)
@@ -41,6 +41,7 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 | Add UI component | `src/components/ui/` | shadcn/ui patterns (see ui/AGENTS.md) |
 | Build configuration | `build.ts` | Custom script, not vite.config |
 | Linting/formatting | `biome.jsonc` | Biome (not ESLint/Prettier) |
+| Unit test configuration | `vitest.config.ts` | Vitest with jsdom environment |
 | Unit test setup | `test/setup.ts` | DOM mocks, matcher extensions |
 | E2E test setup | `playwright.config.ts` | Browser configs, webServer |
 
@@ -112,13 +113,14 @@ Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conve
 - Custom dark mode variant: `:is(.dark *)`
 
 **Testing:**
-- **Framework:** Bun built-in test runner with happy-dom
+- **Unit test framework:** Vitest with jsdom environment
 - **Component tests:** @testing-library/react + @testing-library/user-event
 - **E2E tests:** Playwright (chromium, firefox, webkit)
 - **Test location:** Colocated (`.test.ts` next to source files)
-- **Coverage:** Text + lcov reporters to `./coverage`
-- **Mocked APIs:** ResizeObserver, matchMedia, Canvas, IndexedDB
+- **Coverage:** v8 provider with text + lcov reporters to `./coverage`
+- **Mocked APIs:** ResizeObserver, matchMedia, Canvas API, IndexedDB
 - **NO TESTS for:** `src/components/ui/` (shadcn/ui vendor code)
+- **Skipped tests:** 9 PngConverter conversion flow tests (Image API async limitations in jsdom; fully tested in E2E)
 
 ## COMMANDS
 
@@ -137,11 +139,12 @@ bun run lint:ci      # CI mode with GitHub reporter
 bun run fmt          # Format code with Biome
 
 # Testing
-bun test             # Run unit tests (Bun test runner + happy-dom)
-bun test:watch       # Watch mode for unit tests
-bun test:coverage    # Run tests with coverage report
-bun test:e2e         # Run E2E tests (Playwright)
-bun test:e2e:ui      # Run E2E tests in UI mode (Playwright)
+bun run test         # Run unit tests (Vitest + jsdom)
+bun run test:watch   # Watch mode for unit tests
+bun run test:ui      # Vitest UI mode (browser interface)
+bun run test:coverage # Run tests with coverage report
+bun run test:e2e     # Run E2E tests (Playwright)
+bun run test:e2e:ui  # Run E2E tests in UI mode (Playwright)
 
 # Dependencies
 bun install          # Install dependencies (uses bun.lock)

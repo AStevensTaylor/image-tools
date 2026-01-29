@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { SettingsProvider } from "@/lib/settings";
 import { AspectRatioCrop } from "./AspectRatioCrop";
 

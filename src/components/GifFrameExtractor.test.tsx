@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
 import { render, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { SettingsProvider } from "@/lib/settings";
 import { GifFrameExtractor } from "./GifFrameExtractor";
 
