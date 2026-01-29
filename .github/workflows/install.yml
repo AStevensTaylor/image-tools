@@ -73,7 +73,7 @@ jobs:
         run: bunx playwright install --with-deps
       
       - name: Run E2E tests
-        run: bunx playwright test --workers=1
+        run: bunx playwright test --reporter=github
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
