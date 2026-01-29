@@ -463,7 +463,6 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 			pageMargin,
 			imageMargin,
 		);
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setPages(newPages);
 		setCurrentPageIndex((prev) =>
 			prev >= newPages.length ? Math.max(0, newPages.length - 1) : prev,
@@ -505,6 +504,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 		const currentPage: Page | undefined = pages[currentPageIndex];
 		if (!currentPage) return;
 
+		let cancelled = false;
+
 		// Load and draw images
 		const imagePromises = currentPage.images.map(
 			(packedImg) =>
@@ -512,6 +513,10 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 					const img = new Image();
 					img.crossOrigin = "anonymous";
 					img.onload = () => {
+						if (cancelled) {
+							resolve();
+							return;
+						}
 						drawPackedImage(ctx, packedImg, img, scale);
 						resolve();
 					};
@@ -521,6 +526,10 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 		);
 
 		Promise.all(imagePromises);
+
+		return () => {
+			cancelled = true;
+		};
 	}, [
 		pages,
 		currentPageIndex,
@@ -537,14 +546,28 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 			const img = new Image();
 			img.crossOrigin = "anonymous";
 			img.onload = () => {
-				const canvas = document.createElement("canvas");
-				canvas.width = img.naturalWidth;
-				canvas.height = img.naturalHeight;
-				const ctx = canvas.getContext("2d")!;
-				ctx.drawImage(img, 0, 0);
-				resolve(canvas.toDataURL("image/png"));
+				try {
+					const canvas = document.createElement("canvas");
+					canvas.width = img.naturalWidth;
+					canvas.height = img.naturalHeight;
+					const ctx = canvas.getContext("2d");
+					if (!ctx) {
+						reject(new Error("Failed to get canvas context"));
+						return;
+					}
+					ctx.drawImage(img, 0, 0);
+					resolve(canvas.toDataURL("image/png"));
+				} catch (error) {
+					reject(
+						new Error(
+							`Failed to export canvas: ${error instanceof Error ? error.message : "Unknown error"}`,
+						),
+					);
+				}
 			};
-			img.onerror = reject;
+			img.onerror = () => {
+				reject(new Error(`Failed to load image from URL: ${url}`));
+			};
 			img.src = url;
 		});
 	}, []);
@@ -879,7 +902,12 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 									<Input
 										type="number"
 										value={customWidth}
-										onChange={(e) => setCustomWidth(Number(e.target.value))}
+										onChange={(e) => {
+											const val = e.target.valueAsNumber;
+											if (!isNaN(val)) {
+												setCustomWidth(Math.max(50, Math.min(1000, val)));
+											}
+										}}
 										min={50}
 										max={1000}
 									/>
@@ -889,7 +917,12 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 									<Input
 										type="number"
 										value={customHeight}
-										onChange={(e) => setCustomHeight(Number(e.target.value))}
+										onChange={(e) => {
+											const val = e.target.valueAsNumber;
+											if (!isNaN(val)) {
+												setCustomHeight(Math.max(50, Math.min(1000, val)));
+											}
+										}}
 										min={50}
 										max={1000}
 									/>
@@ -907,7 +940,12 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 								<Input
 									type="number"
 									value={pageMargin}
-									onChange={(e) => setPageMargin(Number(e.target.value))}
+									onChange={(e) => {
+										const val = e.target.valueAsNumber;
+										if (!isNaN(val)) {
+											setPageMargin(Math.max(0, Math.min(50, val)));
+										}
+									}}
 									min={0}
 									max={50}
 								/>
@@ -917,7 +955,12 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 								<Input
 									type="number"
 									value={imageMargin}
-									onChange={(e) => setImageMargin(Number(e.target.value))}
+									onChange={(e) => {
+										const val = e.target.valueAsNumber;
+										if (!isNaN(val)) {
+											setImageMargin(Math.max(0, Math.min(20, val)));
+										}
+									}}
 									min={0}
 									max={20}
 								/>
@@ -935,6 +978,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 									onClick={() => addImageToPrint(img)}
 									className="aspect-square rounded border border-border overflow-hidden hover:border-primary transition-colors"
 									title="Click to add"
+									aria-label={`Add image ${img.id}`}
 								>
 									<img
 										src={img.url}
@@ -974,13 +1018,16 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 												<Input
 													type="number"
 													value={Math.round(img.width)}
-													onChange={(e) =>
-														updateImageSize(
-															img.id,
-															Number(e.target.value),
-															img.height,
-														)
-													}
+													onChange={(e) => {
+														const val = e.target.valueAsNumber;
+														if (!isNaN(val)) {
+															updateImageSize(
+																img.id,
+																Math.max(5, Math.min(effectiveWidth - 2 * pageMargin, val)),
+																img.height,
+															);
+														}
+													}}
 													min={5}
 													max={effectiveWidth - 2 * pageMargin}
 													className="h-7 text-xs"
@@ -991,13 +1038,16 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 												<Input
 													type="number"
 													value={Math.round(img.height)}
-													onChange={(e) =>
-														updateImageSize(
-															img.id,
-															img.width,
-															Number(e.target.value),
-														)
-													}
+													onChange={(e) => {
+														const val = e.target.valueAsNumber;
+														if (!isNaN(val)) {
+															updateImageSize(
+																img.id,
+																img.width,
+																Math.max(5, Math.min(effectiveHeight - 2 * pageMargin, val)),
+															);
+														}
+													}}
 													min={5}
 													max={effectiveHeight - 2 * pageMargin}
 													className="h-7 text-xs"
@@ -1010,6 +1060,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 										size="sm"
 										onClick={() => removeImage(img.id)}
 										className="h-7 w-7 p-0"
+										aria-label="Remove image"
+										title="Remove image"
 									>
 										<Trash2 className="size-4" />
 									</Button>
@@ -1056,6 +1108,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 								size="sm"
 								onClick={() => setCurrentPageIndex((i) => Math.max(0, i - 1))}
 								disabled={currentPageIndex === 0}
+								aria-label="Previous page"
+								title="Previous page"
 							>
 								<ChevronLeft className="size-4" />
 							</Button>
@@ -1069,6 +1123,8 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 									setCurrentPageIndex((i) => Math.min(pages.length - 1, i + 1))
 								}
 								disabled={currentPageIndex === pages.length - 1}
+								aria-label="Next page"
+								title="Next page"
 							>
 								<ChevronRight className="size-4" />
 							</Button>

@@ -257,8 +257,9 @@ export async function saveFileToDirectory(
 	if (subPath) {
 		const parts = subPath.split("/").filter(Boolean);
 		for (const part of parts) {
-			validatePathSegment(part);
-			targetDir = await targetDir.getDirectoryHandle(part, { create: true });
+			const trimmedPart = part.trim();
+			validatePathSegment(trimmedPart);
+			targetDir = await targetDir.getDirectoryHandle(trimmedPart, { create: true });
 		}
 	}
 

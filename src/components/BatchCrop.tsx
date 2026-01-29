@@ -432,6 +432,8 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 									e.stopPropagation();
 									togglePreset(preset.id);
 								}}
+								aria-label={`${preset.enabled ? "Disable" : "Enable"} ${preset.name}`}
+								aria-pressed={preset.enabled}
 								className={cn(
 									"size-5 rounded border flex items-center justify-center transition-colors",
 									preset.enabled
