@@ -44,7 +44,7 @@ const getFrameDimensions = (frame: DecodedFrame) => {
 
 export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExtractorProps) {
   const { settings } = useSettings();
-  const addToGallery = (window as WindowWithGallery).addGeneratedImage;
+  const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
   const [frames, setFrames] = useState<Frame[]>([]);
   const [selectedFrames, setSelectedFrames] = useState<Set<number>>(new Set());
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -266,6 +266,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
   };
 
   const addFrameToGallery = (frame: Frame) => {
+    const addToGallery = getAddToGallery();
     if (!addToGallery) return;
     const baseName = imageName.replace(/\.[^.]+$/, "");
     const extension = getExportExtension(settings.exportFormat);
@@ -436,7 +437,7 @@ export function GifFrameExtractor({ imageUrl, imageName, fileType }: GifFrameExt
             <Download className="size-4" />
             Download
           </Button>
-          {addToGallery && (
+          {getAddToGallery() && (
             <Button
               size="sm"
               variant="outline"

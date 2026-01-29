@@ -48,7 +48,7 @@ const aspectPresets: AspectPreset[] = [
 
 export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
   const { settings } = useSettings();
-  const addToGallery = (window as WindowWithGallery).addGeneratedImage;
+  const getAddToGallery = () => (window as WindowWithGallery).addGeneratedImage;
   const isInitializedRef = useRef(false);
   const [aspectWidth, setAspectWidth] = useState("16");
   const [aspectHeight, setAspectHeight] = useState("9");
@@ -337,6 +337,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
     const dataUrl = canvas.toDataURL(mimeType, quality);
     const baseFileName = imageName.replace(/\.[^.]+$/, "");
 
+    const addToGallery = getAddToGallery();
     if (options?.addToGallery && addToGallery) {
       addToGallery(dataUrl, `cropped-${baseFileName}.${extension}`);
       return;
@@ -387,7 +388,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
               <Download className="size-4" />
               Download Crop
             </Button>
-            {addToGallery && (
+            {getAddToGallery() && (
               <Button size="sm" variant="outline" onClick={() => handleCrop({ addToGallery: true })} disabled={!cropBox}>
                 Add to Gallery
               </Button>

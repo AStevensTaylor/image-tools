@@ -63,12 +63,15 @@ export function App() {
     return () => window.removeEventListener('resize', updateScrollButtons);
   }, [updateScrollButtons]);
 
+  const imageUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    imageUrlsRef.current = images.map((img) => img.url);
+  }, [images]);
+
   useEffect(() => {
     return () => {
-      setImages((prev) => {
-        prev.forEach((img) => URL.revokeObjectURL(img.url));
-        return prev;
-      });
+      imageUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
