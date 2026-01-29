@@ -1023,7 +1023,13 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 														if (!isNaN(val)) {
 															updateImageSize(
 																img.id,
-																Math.max(5, Math.min(effectiveWidth - 2 * pageMargin, val)),
+																Math.max(
+																	5,
+																	Math.min(
+																		effectiveWidth - 2 * pageMargin,
+																		val,
+																	),
+																),
 																img.height,
 															);
 														}
@@ -1044,7 +1050,13 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 															updateImageSize(
 																img.id,
 																img.width,
-																Math.max(5, Math.min(effectiveHeight - 2 * pageMargin, val)),
+																Math.max(
+																	5,
+																	Math.min(
+																		effectiveHeight - 2 * pageMargin,
+																		val,
+																	),
+																),
 															);
 														}
 													}}

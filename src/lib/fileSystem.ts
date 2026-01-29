@@ -259,11 +259,15 @@ export async function saveFileToDirectory(
 		for (const part of parts) {
 			const trimmedPart = part.trim();
 			validatePathSegment(trimmedPart);
-			targetDir = await targetDir.getDirectoryHandle(trimmedPart, { create: true });
+			targetDir = await targetDir.getDirectoryHandle(trimmedPart, {
+				create: true,
+			});
 		}
 	}
 
-	const fileHandle = await targetDir.getFileHandle(trimmedFilename, { create: true });
+	const fileHandle = await targetDir.getFileHandle(trimmedFilename, {
+		create: true,
+	});
 	const writable = await fileHandle.createWritable();
 
 	if (typeof data === "string") {
