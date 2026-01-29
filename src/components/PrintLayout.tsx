@@ -213,7 +213,16 @@ class MaxRectsPacker {
 	}
 }
 
-// Pack images using MaxRects algorithm with rotation support
+/**
+ * Packs multiple images onto pages using MaxRects bin packing algorithm with rotation support.
+ * Arranges images to minimize wasted space while respecting margins.
+ * @param images - Array of PrintImage objects to pack
+ * @param pageWidth - Page width in millimeters
+ * @param pageHeight - Page height in millimeters
+ * @param pageMargin - Margin around page edges in millimeters
+ * @param imageMargin - Spacing between images in millimeters
+ * @returns Array of Page objects containing packed images
+ */
 function packImages(
 	images: PrintImage[],
 	pageWidth: number,
@@ -291,6 +300,13 @@ function packImages(
 	return pages;
 }
 
+/**
+ * PrintLayout component arranges images on pages optimized for printing.
+ * Supports various paper sizes, custom dimensions, margins, and PDF export.
+ * Uses MaxRects bin packing algorithm for efficient space utilization.
+ * @param props - Component props containing images array
+ * @returns The rendered PrintLayout component
+ */
 export function PrintLayout({ images }: PrintLayoutProps) {
 	const [pageSize, setPageSize] = useState<string>("a4");
 	const [customWidth, setCustomWidth] = useState<number>(210);

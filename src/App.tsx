@@ -37,7 +37,11 @@ const SVG_SANITIZE_OPTIONS = {
 	ADD_ATTR: ["xlink:href", "href"],
 };
 
-// Sanitize SVG content using DOMPurify
+/**
+ * Sanitizes an SVG file using DOMPurify to remove potentially malicious content.
+ * @param file - The SVG file to sanitize
+ * @returns A Promise resolving to a new sanitized File object
+ */
 async function sanitizeSvgFile(file: File): Promise<File> {
 	const svgText = await file.text();
 	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
@@ -46,6 +50,12 @@ async function sanitizeSvgFile(file: File): Promise<File> {
 	});
 }
 
+/**
+ * Sanitizes an SVG blob using DOMPurify and converts it to a File object.
+ * @param blob - The SVG blob to sanitize
+ * @param fileName - The desired name for the resulting File
+ * @returns A Promise resolving to a sanitized File object
+ */
 async function sanitizeSvgBlob(blob: Blob, fileName: string): Promise<File> {
 	const svgText = await blob.text();
 	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
@@ -111,6 +121,11 @@ const tools: {
 
 const SCROLL_AMOUNT = 200;
 
+/**
+ * Main application component that orchestrates the image manipulation tools.
+ * Manages image gallery, tool selection, and image processing workflow.
+ * @returns The rendered App component
+ */
 export function App() {
 	const [images, setImages] = useState<ImageItem[]>([]);
 	const [selectedImageId, setSelectedImageId] = useState<string | null>(null);

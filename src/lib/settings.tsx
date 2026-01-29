@@ -32,6 +32,12 @@ const STORAGE_KEY = "image-tools-settings";
 const VALID_THEMES: readonly Theme[] = ["light", "dark", "system"];
 const VALID_EXPORT_FORMATS: readonly ExportFormat[] = ["png", "webp", "jpg"];
 
+/**
+ * Validates and sanitizes loaded settings from storage.
+ * Ensures all settings values are within acceptable ranges and valid types.
+ * @param parsed - Raw parsed settings object from storage
+ * @returns Object containing only validated settings properties
+ */
 function validateSettings(parsed: unknown): Partial<Settings> {
 	const validated: Partial<Settings> = {};
 
@@ -103,6 +109,12 @@ function applyTheme(theme: Theme) {
 	}
 }
 
+/**
+ * SettingsProvider component provides application-wide settings context.
+ * Manages theme, export format, and quality preferences with localStorage persistence.
+ * @param props - Component props with children to wrap
+ * @returns The rendered context provider component
+ */
 export function SettingsProvider({ children }: { children: ReactNode }) {
 	const [settings, setSettings] = useState<Settings>(getStoredSettings);
 
@@ -157,7 +169,11 @@ export function useSettings() {
 	return context;
 }
 
-// Utility to get the MIME type and extension from format
+/**
+ * Returns the MIME type string for the specified export format.
+ * @param format - Export format identifier ("png", "webp", or "jpg")
+ * @returns Corresponding MIME type string
+ */
 export function getExportMimeType(format: ExportFormat): string {
 	switch (format) {
 		case "png":
@@ -169,6 +185,11 @@ export function getExportMimeType(format: ExportFormat): string {
 	}
 }
 
+/**
+ * Returns the file extension for the specified export format.
+ * @param format - Export format identifier ("png", "webp", or "jpg")
+ * @returns Corresponding file extension without dot
+ */
 export function getExportExtension(format: ExportFormat): string {
 	switch (format) {
 		case "png":

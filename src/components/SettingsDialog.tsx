@@ -12,6 +12,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { type ExportFormat, type Theme, useSettings } from "@/lib/settings";
 
+/**
+ * SettingsDialog component provides a modal interface for user preferences.
+ * Allows customization of appearance theme and image export format/quality.
+ * @returns The rendered settings dialog component
+ */
 export function SettingsDialog() {
 	const { settings, setTheme, setExportFormat } = useSettings();
 

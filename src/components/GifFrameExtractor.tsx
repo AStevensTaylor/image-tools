@@ -45,6 +45,12 @@ type DecodedFrame = VideoFrame | ImageBitmap;
 const FRAME_ADD_DELAY_MS = 50;
 const FRAME_DOWNLOAD_DELAY_MS = 100;
 
+/**
+ * Extracts width and height dimensions from a decoded video frame.
+ * Handles both VideoFrame and ImageBitmap types.
+ * @param frame - The decoded frame (VideoFrame or ImageBitmap)
+ * @returns An object containing the frame's width and height
+ */
 const getFrameDimensions = (frame: DecodedFrame) => {
 	if ("displayWidth" in frame && "displayHeight" in frame) {
 		return { width: frame.displayWidth, height: frame.displayHeight };
@@ -57,6 +63,12 @@ const getFrameDimensions = (frame: DecodedFrame) => {
 	return { width: 0, height: 0 };
 };
 
+/**
+ * GifFrameExtractor component extracts individual frames from animated GIF and WebP images.
+ * Supports playback preview, frame selection, batch download, and directory export.
+ * @param props - Component props containing imageUrl, imageName, and fileType
+ * @returns The rendered GifFrameExtractor component
+ */
 export function GifFrameExtractor({
 	imageUrl,
 	imageName,

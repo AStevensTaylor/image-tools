@@ -30,10 +30,24 @@ interface ImageGalleryProps {
 	onToggleCollapse?: () => void;
 }
 
+/**
+ * Computes the greatest common divisor using Euclidean algorithm.
+ * Used to simplify aspect ratios to lowest terms.
+ * @param a - First number
+ * @param b - Second number
+ * @returns The greatest common divisor
+ */
 function gcd(a: number, b: number): number {
 	return b === 0 ? a : gcd(b, a % b);
 }
 
+/**
+ * Gets the simplified aspect ratio string from image dimensions.
+ * Reduces fractions to lowest terms and rounds common ratios.
+ * @param width - The image width in pixels
+ * @param height - The image height in pixels
+ * @returns A human-readable aspect ratio string (e.g., "16:9", "4:3")
+ */
 function getAspectRatio(width: number, height: number): string {
 	const divisor = gcd(width, height);
 	const w = width / divisor;
@@ -107,6 +121,12 @@ function ImageThumbnail({
 	);
 }
 
+/**
+ * ImageGallery component displays a collection of uploaded images with preview thumbnails.
+ * Supports drag-and-drop upload, image selection, and removal.
+ * @param props - Component props for gallery configuration and callbacks
+ * @returns The rendered ImageGallery component
+ */
 export function ImageGallery({
 	images,
 	selectedImageId,
