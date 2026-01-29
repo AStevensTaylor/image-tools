@@ -42,6 +42,9 @@ interface Frame {
 
 type DecodedFrame = VideoFrame | ImageBitmap;
 
+const FRAME_ADD_DELAY_MS = 50;
+const FRAME_DOWNLOAD_DELAY_MS = 100;
+
 const getFrameDimensions = (frame: DecodedFrame) => {
 	if ("displayWidth" in frame && "displayHeight" in frame) {
 		return { width: frame.displayWidth, height: frame.displayHeight };
@@ -68,6 +71,9 @@ export function GifFrameExtractor({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [gifDimensions, setGifDimensions] = useState({ width: 0, height: 0 });
+	const [isSaving, setIsSaving] = useState(false);
+	const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
+	const [hasCachedDir, setHasCachedDir] = useState(false);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -172,7 +178,7 @@ export function GifFrameExtractor({
 				extractedFrames.push({
 					index: i,
 					imageData: fullFrameData,
-					delay: frame.delay,
+				delay: frame.delay * 10, // Convert centiseconds to milliseconds
 					dataUrl: frameCanvas.toDataURL("image/png"),
 				});
 			}
@@ -346,19 +352,12 @@ export function GifFrameExtractor({
 		);
 	};
 
-	const FRAME_ADD_DELAY_MS = 50;
-	const FRAME_DOWNLOAD_DELAY_MS = 100;
-
 	const downloadSelected = () => {
 		const selected = frames.filter((f) => selectedFrames.has(f.index));
 		selected.forEach((frame, i) => {
 			setTimeout(() => downloadFrame(frame), i * FRAME_DOWNLOAD_DELAY_MS);
 		});
 	};
-
-	const [isSaving, setIsSaving] = useState(false);
-	const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
-	const [hasCachedDir, setHasCachedDir] = useState(false);
 
 	// Check for cached directory on mount
 	useEffect(() => {

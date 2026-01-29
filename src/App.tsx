@@ -31,25 +31,23 @@ const RASTER_MIME_TYPES = [
 
 const ALLOWED_MIME_TYPES = [...RASTER_MIME_TYPES, "image/svg+xml"] as const;
 
+const SVG_SANITIZE_OPTIONS = {
+	USE_PROFILES: { svg: true, svgFilters: true },
+	ADD_TAGS: ["use"],
+	ADD_ATTR: ["xlink:href", "href"],
+};
+
 // Sanitize SVG content using DOMPurify
 async function sanitizeSvgFile(file: File): Promise<File> {
 	const svgText = await file.text();
-	const sanitized = DOMPurify.sanitize(svgText, {
-		USE_PROFILES: { svg: true, svgFilters: true },
-		ADD_TAGS: ["use"],
-		ADD_ATTR: ["xlink:href", "href"],
-	});
-	return new File([sanitized], file.name, { type: "image/svg+xml" });
+	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
+	return new File([new Blob([sanitized])], file.name, { type: "image/svg+xml" });
 }
 
 async function sanitizeSvgBlob(blob: Blob, fileName: string): Promise<File> {
 	const svgText = await blob.text();
-	const sanitized = DOMPurify.sanitize(svgText, {
-		USE_PROFILES: { svg: true, svgFilters: true },
-		ADD_TAGS: ["use"],
-		ADD_ATTR: ["xlink:href", "href"],
-	});
-	return new File([sanitized], fileName, { type: "image/svg+xml" });
+	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
+	return new File([new Blob([sanitized])], fileName, { type: "image/svg+xml" });
 }
 
 type Tool =
@@ -319,13 +317,14 @@ export function App() {
 							size="sm"
 							className="absolute left-0 z-10 h-full rounded-none bg-gradient-to-r from-card to-transparent px-2"
 							onClick={() => scroll("left")}
-						>
-							<ChevronLeft className="size-5" />
-						</Button>
-					)}
+						aria-label="Scroll left"
+					>
+						<ChevronLeft className="size-5" />
+					</Button>
+				)}
 
-					{/* Scrollable tools container */}
-					<div
+				{/* Scrollable tools container */}
+				<div
 						ref={toolsContainerRef}
 						className="flex gap-2 p-4 overflow-x-auto scrollbar-hide"
 						onScroll={updateScrollButtons}
@@ -361,6 +360,7 @@ export function App() {
 							size="sm"
 							className="absolute right-0 z-10 h-full rounded-none bg-gradient-to-l from-card to-transparent px-2"
 							onClick={() => scroll("right")}
+							aria-label="Scroll right"
 						>
 							<ChevronRight className="size-5" />
 						</Button>

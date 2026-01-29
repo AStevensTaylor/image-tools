@@ -112,12 +112,8 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 		return extractFilenamePrefix(imageName);
 	});
 
-	// Update filename prefix when image changes
-	useEffect(() => {
-		setFilenamePrefix(extractFilenamePrefix(imageName));
-	}, [imageName]);
-
 	const imageRef = useRef<HTMLImageElement>(null);
+	const initializedPresetsRef = useRef<Set<string>>(new Set());
 
 	// Check for cached directory on mount
 	useEffect(() => {
@@ -164,16 +160,19 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 
 		const newCropBoxes: Record<string, CropBox> = {};
 		for (const preset of presets) {
-			if (!cropBoxes[preset.id]) {
+			if (!initializedPresetsRef.current.has(preset.id)) {
 				const box = initializeCropBox(preset);
-				if (box) newCropBoxes[preset.id] = box;
+				if (box) {
+					newCropBoxes[preset.id] = box;
+					initializedPresetsRef.current.add(preset.id);
+				}
 			}
 		}
 
 		if (Object.keys(newCropBoxes).length > 0) {
 			setCropBoxes((prev) => ({ ...prev, ...newCropBoxes }));
 		}
-	}, [imageSize, presets, initializeCropBox, cropBoxes]);
+	}, [imageSize, presets, initializeCropBox]);
 
 	const handleImageLoad = () => {
 		if (imageRef.current) {
@@ -304,7 +303,10 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 		canvas.width = preset.width;
 		canvas.height = preset.height;
 
-		const ctx = canvas.getContext("2d")!;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) {
+			throw new Error("Failed to get 2D rendering context from canvas");
+		}
 
 		// Fill with white background (no alpha for Google Play)
 		ctx.fillStyle = "#ffffff";
