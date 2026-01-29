@@ -187,41 +187,38 @@ export function App() {
 		});
 	}, []);
 
-	const handleImagesAdd = useCallback(
-		async (files: FileList) => {
-			const newImages: ImageItem[] = [];
+	const handleImagesAdd = useCallback(async (files: FileList) => {
+		const newImages: ImageItem[] = [];
 
-			for (const file of Array.from(files)) {
-				if (
-					!ALLOWED_MIME_TYPES.includes(
-						file.type as (typeof ALLOWED_MIME_TYPES)[number],
-					)
-				) {
-					continue;
-				}
-
-				let processedFile = file;
-
-				// Sanitize SVG files with DOMPurify
-				if (file.type === "image/svg+xml") {
-					processedFile = await sanitizeSvgFile(file);
-				}
-
-				newImages.push({
-					id: crypto.randomUUID(),
-					file: processedFile,
-					url: URL.createObjectURL(processedFile),
-				});
+		for (const file of Array.from(files)) {
+			if (
+				!ALLOWED_MIME_TYPES.includes(
+					file.type as (typeof ALLOWED_MIME_TYPES)[number],
+				)
+			) {
+				continue;
 			}
 
-			setImages((prev) => [...prev, ...newImages]);
+			let processedFile = file;
 
-			if (newImages.length > 0) {
-				setSelectedImageId((prev) => prev ?? newImages[0]?.id ?? null);
+			// Sanitize SVG files with DOMPurify
+			if (file.type === "image/svg+xml") {
+				processedFile = await sanitizeSvgFile(file);
 			}
-		},
-		[selectedImageId],
-	);
+
+			newImages.push({
+				id: crypto.randomUUID(),
+				file: processedFile,
+				url: URL.createObjectURL(processedFile),
+			});
+		}
+
+		setImages((prev) => [...prev, ...newImages]);
+
+		if (newImages.length > 0) {
+			setSelectedImageId((prev) => prev ?? newImages[0]?.id ?? null);
+		}
+	}, []);
 
 	const handleAddGeneratedImage = useCallback(
 		async (dataUrl: string, suggestedName?: string) => {
@@ -275,34 +272,34 @@ export function App() {
 		setSelectedImageId(id);
 	}, []);
 
-	const handleImageRemove = useCallback(
-		(id: string) => {
-			setImages((prev) => {
-				const updatedImages = prev.filter((img) => img.id !== id);
-				const removedImage = prev.find((img) => img.id === id);
-				if (removedImage) {
-					URL.revokeObjectURL(removedImage.url);
-				}
+	const handleImageRemove = useCallback((id: string) => {
+		setImages((prev) => {
+			const updatedImages = prev.filter((img) => img.id !== id);
+			const removedImage = prev.find((img) => img.id === id);
+			if (removedImage) {
+				URL.revokeObjectURL(removedImage.url);
+			}
 
 			return updatedImages;
-			});
+		});
 
-			setSelectedImageId((prev) => {
-				if (prev === id) {
-					// Selection will be managed by the useEffect below
-					return null;
-				}
-				return prev;
-			});
-		},
-		[],
-	);
+		setSelectedImageId((prev) => {
+			if (prev === id) {
+				// Selection will be managed by the useEffect below
+				return null;
+			}
+			return prev;
+		});
+	}, []);
 
 	// Ensure selectedImageId always points to an existing image
 	useEffect(() => {
 		if (images.length === 0) {
 			setSelectedImageId(null);
-		} else if (selectedImageId && !images.find((img) => img.id === selectedImageId)) {
+		} else if (
+			selectedImageId &&
+			!images.find((img) => img.id === selectedImageId)
+		) {
 			setSelectedImageId(images[0]?.id ?? null);
 		}
 	}, [images, selectedImageId]);

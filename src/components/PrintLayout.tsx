@@ -425,7 +425,7 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 				CUT_MARKER_LENGTH * scale,
 				Math.max(2, maxMarkerLen),
 			);
-			const gap = Math.max(0, Math.min(2, maxMarkerLen / 2));
+			const _gap = Math.max(0, Math.min(2, maxMarkerLen / 2));
 
 			// Only draw markers if there's enough margin space
 			if (markerLen > 1) {
@@ -772,72 +772,72 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 
 				container.appendChild(img);
 
-// Add cut markers - L-shaped marks centered on corner
-					const markerLen = Math.min(
-						CUT_MARKER_LENGTH,
-						Math.max(1, imageMargin / 2 - 0.5),
-					);
-					const markerThickness = 0.2;
-					const halfThickness = markerThickness / 2;
+				// Add cut markers - L-shaped marks centered on corner
+				const markerLen = Math.min(
+					CUT_MARKER_LENGTH,
+					Math.max(1, imageMargin / 2 - 0.5),
+				);
+				const markerThickness = 0.2;
+				const halfThickness = markerThickness / 2;
 
-					if (markerLen > 0.5) {
-						// Each marker is positioned so its center aligns with the image edge
-						const markers = [
-							// Top-left horizontal (ends at corner)
-							{
-								left: -markerLen,
-								top: -halfThickness,
-								width: markerLen,
-								height: markerThickness,
-							},
-							// Top-left vertical (ends at corner)
-							{
-								left: -halfThickness,
-								top: -markerLen,
-								width: markerThickness,
-								height: markerLen,
-							},
-							// Top-right horizontal (starts at corner)
-							{
-								left: w,
-								top: -halfThickness,
-								width: markerLen,
-								height: markerThickness,
-							},
-							// Top-right vertical (ends at corner)
-							{
-								left: w - halfThickness,
-								top: -markerLen,
-								width: markerThickness,
-								height: markerLen,
-							},
-							// Bottom-left horizontal (ends at corner)
-							{
-								left: -markerLen,
-								top: h - halfThickness,
-								width: markerLen,
-								height: markerThickness,
-							},
-							// Bottom-left vertical (starts at corner)
-							{
-								left: -halfThickness,
-								top: h,
-								width: markerThickness,
-								height: markerLen,
-							},
-							// Bottom-right horizontal (starts at corner)
-							{
-								left: w,
-								top: h - halfThickness,
-								width: markerLen,
-								height: markerThickness,
-							},
-							// Bottom-right vertical (starts at corner)
-							{
-								left: w - halfThickness,
-								top: h,
-								width: markerThickness,
-								height: markerLen,
+				if (markerLen > 0.5) {
+					// Each marker is positioned so its center aligns with the image edge
+					const markers = [
+						// Top-left horizontal (ends at corner)
+						{
+							left: -markerLen,
+							top: -halfThickness,
+							width: markerLen,
+							height: markerThickness,
+						},
+						// Top-left vertical (ends at corner)
+						{
+							left: -halfThickness,
+							top: -markerLen,
+							width: markerThickness,
+							height: markerLen,
+						},
+						// Top-right horizontal (starts at corner)
+						{
+							left: w,
+							top: -halfThickness,
+							width: markerLen,
+							height: markerThickness,
+						},
+						// Top-right vertical (ends at corner)
+						{
+							left: w - halfThickness,
+							top: -markerLen,
+							width: markerThickness,
+							height: markerLen,
+						},
+						// Bottom-left horizontal (ends at corner)
+						{
+							left: -markerLen,
+							top: h - halfThickness,
+							width: markerLen,
+							height: markerThickness,
+						},
+						// Bottom-left vertical (starts at corner)
+						{
+							left: -halfThickness,
+							top: h,
+							width: markerThickness,
+							height: markerLen,
+						},
+						// Bottom-right horizontal (starts at corner)
+						{
+							left: w,
+							top: h - halfThickness,
+							width: markerLen,
+							height: markerThickness,
+						},
+						// Bottom-right vertical (starts at corner)
+						{
+							left: w - halfThickness,
+							top: h,
+							width: markerThickness,
+							height: markerLen,
 						},
 					];
 

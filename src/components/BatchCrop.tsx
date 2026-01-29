@@ -34,7 +34,6 @@ const isValidImageUrl = (url: string | undefined): boolean => {
 	}
 };
 
-
 interface BatchCropProps {
 	imageUrl: string;
 	imageName: string;
