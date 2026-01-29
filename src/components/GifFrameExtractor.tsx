@@ -178,7 +178,7 @@ export function GifFrameExtractor({
 				extractedFrames.push({
 					index: i,
 					imageData: fullFrameData,
-				delay: frame.delay * 10, // Convert centiseconds to milliseconds
+					delay: frame.delay * 10, // Convert centiseconds to milliseconds
 					dataUrl: frameCanvas.toDataURL("image/png"),
 				});
 			}

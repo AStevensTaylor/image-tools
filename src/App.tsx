@@ -41,7 +41,9 @@ const SVG_SANITIZE_OPTIONS = {
 async function sanitizeSvgFile(file: File): Promise<File> {
 	const svgText = await file.text();
 	const sanitized = DOMPurify.sanitize(svgText, SVG_SANITIZE_OPTIONS);
-	return new File([new Blob([sanitized])], file.name, { type: "image/svg+xml" });
+	return new File([new Blob([sanitized])], file.name, {
+		type: "image/svg+xml",
+	});
 }
 
 async function sanitizeSvgBlob(blob: Blob, fileName: string): Promise<File> {
@@ -317,14 +319,14 @@ export function App() {
 							size="sm"
 							className="absolute left-0 z-10 h-full rounded-none bg-gradient-to-r from-card to-transparent px-2"
 							onClick={() => scroll("left")}
-						aria-label="Scroll left"
-					>
-						<ChevronLeft className="size-5" />
-					</Button>
-				)}
+							aria-label="Scroll left"
+						>
+							<ChevronLeft className="size-5" />
+						</Button>
+					)}
 
-				{/* Scrollable tools container */}
-				<div
+					{/* Scrollable tools container */}
+					<div
 						ref={toolsContainerRef}
 						className="flex gap-2 p-4 overflow-x-auto scrollbar-hide"
 						onScroll={updateScrollButtons}
