@@ -105,12 +105,11 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
   }, [imageSize, aspectRatio]);
 
   useEffect(() => {
-    if (!isInitializedRef.current) {
-      isInitializedRef.current = true;
+    if (imageSize.width && imageSize.height) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       initializeCropBox();
     }
-  }, [imageSize.width, imageSize.height, aspectRatio, initializeCropBox]);
+  }, [initializeCropBox, imageSize.width, imageSize.height]);
 
   const handleImageLoad = () => {
     if (imageRef.current) {
