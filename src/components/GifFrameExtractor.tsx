@@ -462,41 +462,41 @@ export function GifFrameExtractor({
 
 				{/* Playback controls */}
 				<div className="flex items-center justify-center gap-2">
-				<Button
-					variant="outline"
-					size="icon"
-					onClick={goToPrevFrame}
-					aria-label="Previous frame"
-					title="Previous frame"
-				>
-					<ChevronLeft className="size-4" />
-				</Button>
-				<Button
-					variant="outline"
-					size="icon"
-					onClick={() => setIsPlaying(!isPlaying)}
-					aria-label={isPlaying ? "Pause" : "Play"}
-					title={isPlaying ? "Pause" : "Play"}
-				>
-					{isPlaying ? (
-						<Pause className="size-4" />
-					) : (
-						<Play className="size-4" />
-					)}
-				</Button>
-				<Button
-					variant="outline"
-					size="icon"
-					onClick={goToNextFrame}
-					aria-label="Next frame"
-					title="Next frame"
-				>
-					<ChevronRight className="size-4" />
-				</Button>
-				<span className="text-sm text-muted-foreground ml-2">
-					Frame {currentFrame + 1} / {frames.length}
-				</span>
-			</div>
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={goToPrevFrame}
+						aria-label="Previous frame"
+						title="Previous frame"
+					>
+						<ChevronLeft className="size-4" />
+					</Button>
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={() => setIsPlaying(!isPlaying)}
+						aria-label={isPlaying ? "Pause" : "Play"}
+						title={isPlaying ? "Pause" : "Play"}
+					>
+						{isPlaying ? (
+							<Pause className="size-4" />
+						) : (
+							<Play className="size-4" />
+						)}
+					</Button>
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={goToNextFrame}
+						aria-label="Next frame"
+						title="Next frame"
+					>
+						<ChevronRight className="size-4" />
+					</Button>
+					<span className="text-sm text-muted-foreground ml-2">
+						Frame {currentFrame + 1} / {frames.length}
+					</span>
+				</div>
 
 				{/* Selection controls */}
 				<div className="flex items-center gap-2 flex-wrap">

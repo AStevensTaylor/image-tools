@@ -75,12 +75,21 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		setActivePreset(preset.label);
 	};
 
-	const handleCustomInput = (width: string | number, height: string | number) => {
+	const handleCustomInput = (
+		width: string | number,
+		height: string | number,
+	) => {
 		const widthNum = typeof width === "string" ? parseFloat(width) : width;
 		const heightNum = typeof height === "string" ? parseFloat(height) : height;
 
-		const safWidth = isNaN(widthNum) || widthNum <= 0 ? aspectWidth : Math.max(1, widthNum).toString();
-		const safeHeight = isNaN(heightNum) || heightNum <= 0 ? aspectHeight : Math.max(1, heightNum).toString();
+		const safWidth =
+			isNaN(widthNum) || widthNum <= 0
+				? aspectWidth
+				: Math.max(1, widthNum).toString();
+		const safeHeight =
+			isNaN(heightNum) || heightNum <= 0
+				? aspectHeight
+				: Math.max(1, heightNum).toString();
 
 		setAspectWidth(safWidth);
 		setAspectHeight(safeHeight);
@@ -431,7 +440,9 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 								id="aspect-height"
 								type="number"
 								value={aspectHeight}
-								onChange={(e) => handleCustomInput(aspectWidth, e.target.valueAsNumber)}
+								onChange={(e) =>
+									handleCustomInput(aspectWidth, e.target.valueAsNumber)
+								}
 								className="w-16"
 								min="1"
 							/>

@@ -29,10 +29,7 @@ const RASTER_MIME_TYPES = [
 	"image/webp",
 ] as const;
 
-const ALLOWED_MIME_TYPES = [
-	...RASTER_MIME_TYPES,
-	"image/svg+xml",
-] as const;
+const ALLOWED_MIME_TYPES = [...RASTER_MIME_TYPES, "image/svg+xml"] as const;
 
 // Sanitize SVG content using DOMPurify
 async function sanitizeSvgFile(file: File): Promise<File> {
@@ -224,7 +221,8 @@ export function App() {
 				)
 					return;
 
-				const extensionFromMime = blob.type.split("/")[1]?.replace("+xml", "") || "png";
+				const extensionFromMime =
+					blob.type.split("/")[1]?.replace("+xml", "") || "png";
 				const fileName =
 					suggestedName || `output-${Date.now()}.${extensionFromMime}`;
 
