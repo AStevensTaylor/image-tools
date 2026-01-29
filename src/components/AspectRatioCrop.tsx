@@ -106,7 +106,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       initializeCropBox();
     }
-  }, [imageSize.width, imageSize.height, aspectRatio, initializeCropBox]);
+  }, [initializeCropBox, imageSize.width, imageSize.height]);
 
   const handleImageLoad = () => {
     if (imageRef.current) {
