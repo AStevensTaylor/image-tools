@@ -10,17 +10,17 @@ import {
 	Printer,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AspectRatioCrop } from "./components/AspectRatioCrop";
-import { BatchCrop } from "./components/BatchCrop";
-import { GifFrameExtractor } from "./components/GifFrameExtractor";
-import { ImageGallery } from "./components/ImageGallery";
-import { PngConverter } from "./components/PngConverter";
-import { PrintLayout } from "./components/PrintLayout";
-import { SettingsDialog } from "./components/SettingsDialog";
-import { Button } from "./components/ui/button";
-import type { WindowWithGallery } from "./lib/gallery";
-import { cn } from "./lib/utils";
-import "./index.css";
+import { AspectRatioCrop } from "@/components/AspectRatioCrop";
+import { BatchCrop } from "@/components/BatchCrop";
+import { GifFrameExtractor } from "@/components/GifFrameExtractor";
+import { ImageGallery } from "@/components/ImageGallery";
+import { PngConverter } from "@/components/PngConverter";
+import { PrintLayout } from "@/components/PrintLayout";
+import { SettingsDialog } from "@/components/SettingsDialog";
+import { Button } from "@/components/ui/button";
+import type { WindowWithGallery } from "@/lib/gallery";
+import { cn } from "@/lib/utils";
+import "@/index.css";
 
 const RASTER_MIME_TYPES = [
 	"image/png",

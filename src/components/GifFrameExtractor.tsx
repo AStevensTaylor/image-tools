@@ -70,6 +70,9 @@ export function GifFrameExtractor({
 	const [gifDimensions, setGifDimensions] = useState({ width: 0, height: 0 });
 
 	useEffect(() => {
+		const controller = new AbortController();
+		let isActive = true;
+
 		const loadAnimatedImage = async () => {
 			setIsLoading(true);
 			setError(null);
@@ -78,23 +81,31 @@ export function GifFrameExtractor({
 			setCurrentFrame(0);
 
 			try {
-				const response = await fetch(imageUrl);
+				const response = await fetch(imageUrl, { signal: controller.signal });
 				const buffer = await response.arrayBuffer();
+
+				if (!isActive) return;
 
 				if (fileType === "image/gif") {
 					await loadGifFrames(buffer);
 				} else if (fileType === "image/webp") {
 					await loadWebpFrames(buffer);
 				} else {
-					setError("Unsupported file type for frame extraction");
+					if (isActive) {
+						setError("Unsupported file type for frame extraction");
+					}
 				}
 			} catch (err) {
-				setError(
-					"Failed to parse animated image. Make sure it's a valid file.",
-				);
-				console.error(err);
+				if (isActive && !(err instanceof Error && err.name === "AbortError")) {
+					setError(
+						"Failed to parse animated image. Make sure it's a valid file.",
+					);
+					console.error(err);
+				}
 			} finally {
-				setIsLoading(false);
+				if (isActive) {
+					setIsLoading(false);
+				}
 			}
 		};
 
@@ -102,14 +113,21 @@ export function GifFrameExtractor({
 			const gif = parseGIF(buffer);
 			const decompressedFrames = decompressFrames(gif, true);
 
+			if (!isActive) return;
+
 			if (decompressedFrames.length === 0) {
-				setError("No frames found in GIF");
+				if (isActive) {
+					setError("No frames found in GIF");
+				}
 				return;
 			}
 
 			const width = gif.lsd.width;
 			const height = gif.lsd.height;
-			setGifDimensions({ width, height });
+
+			if (isActive) {
+				setGifDimensions({ width, height });
+			}
 
 			const canvas = document.createElement("canvas");
 			canvas.width = width;
@@ -119,6 +137,8 @@ export function GifFrameExtractor({
 			const extractedFrames: Frame[] = [];
 
 			for (let i = 0; i < decompressedFrames.length; i++) {
+				if (!isActive) return;
+
 				const frame = decompressedFrames[i];
 				if (!frame) {
 					continue;
@@ -157,15 +177,19 @@ export function GifFrameExtractor({
 				});
 			}
 
-			setFrames(extractedFrames);
+			if (isActive) {
+				setFrames(extractedFrames);
+			}
 		};
 
 		const loadWebpFrames = async (buffer: ArrayBuffer) => {
 			// Use ImageDecoder API for WebP (available in modern browsers)
 			if (!("ImageDecoder" in window)) {
-				setError(
-					"Your browser doesn't support WebP frame extraction. Please use Chrome or Edge.",
-				);
+				if (isActive) {
+					setError(
+						"Your browser doesn't support WebP frame extraction. Please use Chrome or Edge.",
+					);
+				}
 				return;
 			}
 
@@ -174,62 +198,78 @@ export function GifFrameExtractor({
 				type: "image/webp",
 			});
 
-			const selectedTrack = (
-				decoder as ImageDecoder & {
-					tracks?: {
-						selectedTrack?: {
-							frameCount?: number;
-							frameInfo?: Array<{ duration?: number }>;
+			try {
+				const selectedTrack = (
+					decoder as ImageDecoder & {
+						tracks?: {
+							selectedTrack?: {
+								frameCount?: number;
+								frameInfo?: Array<{ duration?: number }>;
+							};
 						};
-					};
+					}
+				).tracks?.selectedTrack;
+
+				await decoder.decode({ frameIndex: 0 });
+				if (!isActive) return;
+
+				const frameCount = selectedTrack?.frameCount || 1;
+
+				if (frameCount <= 1) {
+					if (isActive) {
+						setError("This WebP is not animated (only 1 frame found)");
+					}
+					return;
 				}
-			).tracks?.selectedTrack;
 
-			await decoder.decode({ frameIndex: 0 });
-			const frameCount = selectedTrack?.frameCount || 1;
+				const extractedFrames: Frame[] = [];
 
-			if (frameCount <= 1) {
-				setError("This WebP is not animated (only 1 frame found)");
-				return;
+				for (let i = 0; i < frameCount; i++) {
+					if (!isActive) return;
+
+					const result = await decoder.decode({ frameIndex: i });
+					const frame = result.image as DecodedFrame;
+					const { width, height } = getFrameDimensions(frame);
+
+					if (i === 0 && isActive) {
+						setGifDimensions({ width, height });
+					}
+
+					const canvas = document.createElement("canvas");
+					canvas.width = width;
+					canvas.height = height;
+					const ctx = canvas.getContext("2d")!;
+					ctx.drawImage(frame, 0, 0);
+
+					const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+					const duration = selectedTrack?.frameInfo?.[i]?.duration ?? 100000;
+
+					extractedFrames.push({
+						index: i,
+						imageData,
+						delay: Math.round(duration / 1000), // Convert microseconds to milliseconds
+						dataUrl: canvas.toDataURL("image/png"),
+					});
+
+					if ("close" in frame && typeof frame.close === "function") {
+						frame.close();
+					}
+				}
+
+				if (isActive) {
+					setFrames(extractedFrames);
+				}
+			} finally {
+				decoder.close();
 			}
-
-			const extractedFrames: Frame[] = [];
-
-			for (let i = 0; i < frameCount; i++) {
-				const result = await decoder.decode({ frameIndex: i });
-				const frame = result.image as DecodedFrame;
-				const { width, height } = getFrameDimensions(frame);
-
-				if (i === 0) {
-					setGifDimensions({ width, height });
-				}
-
-				const canvas = document.createElement("canvas");
-				canvas.width = width;
-				canvas.height = height;
-				const ctx = canvas.getContext("2d")!;
-				ctx.drawImage(frame, 0, 0);
-
-				const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-				const duration = selectedTrack?.frameInfo?.[i]?.duration ?? 100000;
-
-				extractedFrames.push({
-					index: i,
-					imageData,
-					delay: Math.round(duration / 1000), // Convert microseconds to milliseconds
-					dataUrl: canvas.toDataURL("image/png"),
-				});
-
-				if ("close" in frame && typeof frame.close === "function") {
-					frame.close();
-				}
-			}
-
-			decoder.close();
-			setFrames(extractedFrames);
 		};
 
 		loadAnimatedImage();
+
+		return () => {
+			isActive = false;
+			controller.abort();
+		};
 	}, [imageUrl, fileType]);
 
 	// Playback
@@ -422,27 +462,41 @@ export function GifFrameExtractor({
 
 				{/* Playback controls */}
 				<div className="flex items-center justify-center gap-2">
-					<Button variant="outline" size="icon" onClick={goToPrevFrame}>
-						<ChevronLeft className="size-4" />
-					</Button>
-					<Button
-						variant="outline"
-						size="icon"
-						onClick={() => setIsPlaying(!isPlaying)}
-					>
-						{isPlaying ? (
-							<Pause className="size-4" />
-						) : (
-							<Play className="size-4" />
-						)}
-					</Button>
-					<Button variant="outline" size="icon" onClick={goToNextFrame}>
-						<ChevronRight className="size-4" />
-					</Button>
-					<span className="text-sm text-muted-foreground ml-2">
-						Frame {currentFrame + 1} / {frames.length}
-					</span>
-				</div>
+				<Button
+					variant="outline"
+					size="icon"
+					onClick={goToPrevFrame}
+					aria-label="Previous frame"
+					title="Previous frame"
+				>
+					<ChevronLeft className="size-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					onClick={() => setIsPlaying(!isPlaying)}
+					aria-label={isPlaying ? "Pause" : "Play"}
+					title={isPlaying ? "Pause" : "Play"}
+				>
+					{isPlaying ? (
+						<Pause className="size-4" />
+					) : (
+						<Play className="size-4" />
+					)}
+				</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					onClick={goToNextFrame}
+					aria-label="Next frame"
+					title="Next frame"
+				>
+					<ChevronRight className="size-4" />
+				</Button>
+				<span className="text-sm text-muted-foreground ml-2">
+					Frame {currentFrame + 1} / {frames.length}
+				</span>
+			</div>
 
 				{/* Selection controls */}
 				<div className="flex items-center gap-2 flex-wrap">

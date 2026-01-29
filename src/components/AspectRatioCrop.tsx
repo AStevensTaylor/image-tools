@@ -75,9 +75,15 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		setActivePreset(preset.label);
 	};
 
-	const handleCustomInput = (width: string, height: string) => {
-		setAspectWidth(width);
-		setAspectHeight(height);
+	const handleCustomInput = (width: string | number, height: string | number) => {
+		const widthNum = typeof width === "string" ? parseFloat(width) : width;
+		const heightNum = typeof height === "string" ? parseFloat(height) : height;
+
+		const safWidth = isNaN(widthNum) || widthNum <= 0 ? aspectWidth : Math.max(1, widthNum).toString();
+		const safeHeight = isNaN(heightNum) || heightNum <= 0 ? aspectHeight : Math.max(1, heightNum).toString();
+
+		setAspectWidth(safWidth);
+		setAspectHeight(safeHeight);
 		setActivePreset(null);
 	};
 
@@ -338,40 +344,63 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 		img.crossOrigin = "anonymous";
 		img.src = imageUrl;
 
-		await new Promise((resolve) => {
-			img.onload = resolve;
-		});
+		try {
+			await new Promise<void>((resolve, reject) => {
+				const cleanup = () => {
+					img.onload = null;
+					img.onerror = null;
+				};
+				img.onload = () => {
+					cleanup();
+					resolve();
+				};
+				img.onerror = () => {
+					cleanup();
+					reject(new Error("Failed to load image for cropping"));
+				};
+			});
 
-		ctx.drawImage(
-			img,
-			cropBox.x * scaleX,
-			cropBox.y * scaleY,
-			cropBox.width * scaleX,
-			cropBox.height * scaleY,
-			0,
-			0,
-			canvas.width,
-			canvas.height,
-		);
+			ctx.drawImage(
+				img,
+				cropBox.x * scaleX,
+				cropBox.y * scaleY,
+				cropBox.width * scaleX,
+				cropBox.height * scaleY,
+				0,
+				0,
+				canvas.width,
+				canvas.height,
+			);
 
-		const mimeType = getExportMimeType(settings.exportFormat);
-		const extension = getExportExtension(settings.exportFormat);
-		const quality =
-			settings.exportFormat === "png" ? undefined : settings.exportQuality;
+			const mimeType = getExportMimeType(settings.exportFormat);
+			const extension = getExportExtension(settings.exportFormat);
+			const quality =
+				settings.exportFormat === "png" ? undefined : settings.exportQuality;
 
-		const dataUrl = canvas.toDataURL(mimeType, quality);
-		const baseFileName = imageName.replace(/\.[^.]+$/, "");
+			let dataUrl: string;
+			try {
+				dataUrl = canvas.toDataURL(mimeType, quality);
+			} catch {
+				throw new Error(
+					"Failed to export canvas. This might be due to CORS restrictions or tainted canvas.",
+				);
+			}
 
-		const addToGallery = getAddToGallery();
-		if (options?.addToGallery && addToGallery) {
-			addToGallery(dataUrl, `cropped-${baseFileName}.${extension}`);
-			return;
+			const baseFileName = imageName.replace(/\.[^.]+$/, "");
+
+			const addToGallery = getAddToGallery();
+			if (options?.addToGallery && addToGallery) {
+				addToGallery(dataUrl, `cropped-${baseFileName}.${extension}`);
+				return;
+			}
+
+			const link = document.createElement("a");
+			link.download = `cropped-${baseFileName}.${extension}`;
+			link.href = dataUrl;
+			link.click();
+		} catch (error) {
+			console.error("Crop operation failed:", error);
 		}
-
-		const link = document.createElement("a");
-		link.download = `cropped-${baseFileName}.${extension}`;
-		link.href = dataUrl;
-		link.click();
 	};
 
 	return (
@@ -389,7 +418,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 								type="number"
 								value={aspectWidth}
 								onChange={(e) =>
-									handleCustomInput(e.target.value, aspectHeight)
+									handleCustomInput(e.target.valueAsNumber, aspectHeight)
 								}
 								className="w-16"
 								min="1"
@@ -402,7 +431,7 @@ export function AspectRatioCrop({ imageUrl, imageName }: AspectRatioCropProps) {
 								id="aspect-height"
 								type="number"
 								value={aspectHeight}
-								onChange={(e) => handleCustomInput(aspectWidth, e.target.value)}
+								onChange={(e) => handleCustomInput(aspectWidth, e.target.valueAsNumber)}
 								className="w-16"
 								min="1"
 							/>
