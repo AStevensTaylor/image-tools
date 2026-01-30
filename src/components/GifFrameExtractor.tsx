@@ -331,6 +331,15 @@ export function GifFrameExtractor({
 		return () => clearTimeout(timeout);
 	}, [isPlaying, currentFrame, frames]);
 
+	// Check for cached directory on mount
+	useEffect(() => {
+		const checkCache = async () => {
+			const hasCache = await hasCachedDirectory();
+			setHasCachedDir(hasCache);
+		};
+		checkCache();
+	}, []);
+
 	/**
 	 * Extracts the file extension from a data URL by parsing its MIME type.
 	 * Maps MIME types to appropriate file extensions.

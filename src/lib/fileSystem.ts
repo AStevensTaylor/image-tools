@@ -179,6 +179,7 @@ export async function clearCachedDirectory(): Promise<void> {
 		});
 	} catch (err) {
 		console.error("Failed to clear directory handle:", err);
+		throw err;
 	}
 }
 
