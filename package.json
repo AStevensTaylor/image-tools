@@ -46,6 +46,7 @@
 		"@types/dompurify": "^3.2.0",
 		"@types/react": "^19.2.9",
 		"@types/react-dom": "^19.2.3",
+		"@types/web-app-manifest": "^1.0.9",
 		"@vitest/ui": "^4.0.18",
 		"globals": "^17.1.0",
 		"happy-dom": "^20.4.0",

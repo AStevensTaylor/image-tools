@@ -3,6 +3,7 @@ import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
+import type { WebAppManifest } from "web-app-manifest";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
 	console.log(`
@@ -161,32 +162,34 @@ const result = await Bun.build({
 // Process manifest.json with hashed icon paths
 const manifestSrc = path.join(process.cwd(), "src", "manifest.json");
 if (existsSync(manifestSrc)) {
-	const manifest = await Bun.file(manifestSrc).json();
+	const manifest: WebAppManifest = await Bun.file(manifestSrc).json();
 
 	// Find hashed icon filenames from build output
 	const findHashedAsset = (originalName: string): string => {
-		const baseName = path.basename(originalName, path.extname(originalName));
-		const ext = path.extname(originalName);
+		// Normalize the icon path (remove ./ or ../ prefixes)
+		const normalizedName = originalName.replace(/^\.\/|^\.\.\//, "");
+		const baseName = path.basename(normalizedName, path.extname(normalizedName));
+		const ext = path.extname(normalizedName);
+
+		// Find the matching hashed asset by looking for exact basename match with extension
 		const output = result.outputs.find((o) => {
 			const outputBase = path.basename(o.path);
-			return outputBase.startsWith(baseName) && outputBase.endsWith(ext);
+			const outputNameWithoutHash = outputBase
+				.replace(/\.[a-f0-9]{8}\./, ".") // Remove 8-char hash pattern
+				.replace(/\.[a-f0-9]{16}\./, "."); // Remove 16-char hash pattern
+
+			return outputNameWithoutHash === `${baseName}${ext}`;
 		});
+
 		return output ? `./${path.basename(output.path)}` : originalName;
 	};
 
 	// Update icon paths in manifest
 	if (manifest.icons) {
-		manifest.icons = manifest.icons.map(
-			(icon: {
-				src: string;
-				sizes: string;
-				type: string;
-				purpose?: string;
-			}) => ({
-				...icon,
-				src: findHashedAsset(icon.src),
-			}),
-		);
+		manifest.icons = manifest.icons.map((icon) => ({
+			...icon,
+			src: findHashedAsset(icon.src),
+		}));
 	}
 
 	await Bun.write(path.join(outdir, "manifest.json"), JSON.stringify(manifest));
