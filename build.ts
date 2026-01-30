@@ -168,7 +168,10 @@ if (existsSync(manifestSrc)) {
 	const findHashedAsset = (originalName: string): string => {
 		// Normalize the icon path (remove ./ or ../ prefixes)
 		const normalizedName = originalName.replace(/^\.\/|^\.\.\//, "");
-		const baseName = path.basename(normalizedName, path.extname(normalizedName));
+		const baseName = path.basename(
+			normalizedName,
+			path.extname(normalizedName),
+		);
 		const ext = path.extname(normalizedName);
 
 		// Find the matching hashed asset by looking for exact basename match with extension
