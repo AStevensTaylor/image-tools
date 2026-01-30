@@ -1,0 +1,172 @@
+/**
+ * Test setup file for Vitest
+ * Configures jsdom for browser-like environment and sets up mocks
+ */
+
+import { cleanup } from "@testing-library/react";
+import { afterEach } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import type { TestWindow } from "./types";
+
+afterEach(() => {
+	cleanup();
+});
+
+class ResizeObserverMock {
+	observe() {
+		return undefined;
+	}
+	unobserve() {
+		return undefined;
+	}
+	disconnect() {
+		return undefined;
+	}
+}
+
+global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
+if (!global.window.matchMedia) {
+	global.window.matchMedia = (query: string) => ({
+		matches: query.includes("dark") ? false : true,
+		media: query,
+		onchange: null,
+		addListener: () => undefined,
+		removeListener: () => undefined,
+		addEventListener: () => undefined,
+		removeEventListener: () => undefined,
+		dispatchEvent: () => true,
+	});
+}
+
+(window as TestWindow).addGeneratedImage = (dataUrl: string, name?: string) => {
+	return undefined;
+};
+
+class MockCanvasRenderingContext2D {
+	drawImage() {
+		return undefined;
+	}
+	fillRect() {
+		return undefined;
+	}
+	clearRect() {
+		return undefined;
+	}
+	getImageData() {
+		return { data: new Uint8ClampedArray(4) };
+	}
+	putImageData() {
+		return undefined;
+	}
+	createImageData() {
+		return { data: new Uint8ClampedArray(4) };
+	}
+	setTransform() {
+		return undefined;
+	}
+	fillText() {
+		return undefined;
+	}
+	strokeText() {
+		return undefined;
+	}
+	beginPath() {
+		return undefined;
+	}
+	moveTo() {
+		return undefined;
+	}
+	lineTo() {
+		return undefined;
+	}
+	closePath() {
+		return undefined;
+	}
+	stroke() {
+		return undefined;
+	}
+	fill() {
+		return undefined;
+	}
+	arc() {
+		return undefined;
+	}
+	rect() {
+		return undefined;
+	}
+	save() {
+		return undefined;
+	}
+	restore() {
+		return undefined;
+	}
+	scale() {
+		return undefined;
+	}
+	rotate() {
+		return undefined;
+	}
+	translate() {
+		return undefined;
+	}
+}
+
+class MockCanvas {
+	width = 100;
+	height = 100;
+
+	getContext(contextType: string) {
+		if (contextType === "2d") {
+			return new MockCanvasRenderingContext2D() as unknown as CanvasRenderingContext2D;
+		}
+		return null;
+	}
+
+	toDataURL(type?: string) {
+		return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+	}
+
+	toBlob(
+		callback: (blob: Blob | null) => void,
+		type?: string,
+		quality?: number,
+	): void {
+		setTimeout(() => {
+			try {
+				const dataUrl = this.toDataURL(type);
+				const base64Index = dataUrl.indexOf(",");
+				if (base64Index === -1) {
+					callback(null);
+					return;
+				}
+				const base64String = dataUrl.slice(base64Index + 1);
+				const binaryString = atob(base64String);
+				const bytes = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					bytes[i] = binaryString.charCodeAt(i);
+				}
+				const mimeType = type || "image/png";
+				const blob = new Blob([bytes], { type: mimeType });
+				callback(blob);
+			} catch {
+				callback(null);
+			}
+		}, 0);
+	}
+}
+
+const originalCreateElement = document.createElement;
+document.createElement = function <K extends keyof HTMLElementTagNameMap>(
+	tagName: K,
+	options?: ElementCreationOptions,
+): HTMLElement {
+	if (tagName.toLowerCase() === "canvas") {
+		return new MockCanvas() as unknown as HTMLCanvasElement;
+	}
+	return originalCreateElement.call(
+		document,
+		tagName,
+		options,
+	) as unknown as HTMLElementTagNameMap[K];
+};

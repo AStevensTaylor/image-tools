@@ -1,4 +1,4 @@
-name: Install Check
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  install:
+  install-and-lint:
     runs-on: ubuntu-latest
     
     permissions:
@@ -24,3 +24,82 @@ jobs:
       
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      
+      - name: Run Biome lint
+        run: bun run biome ci --reporter github .
+      
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: install-and-lint
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.x"
+      
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun
+            ~/.bun/bin
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      
+      - name: Run unit tests
+        run: bun run test
+      
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: install-and-lint
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.x"
+      
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun
+            ~/.bun/bin
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+      
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps
+      
+      - name: Run E2E tests
+        run: bunx playwright test --reporter=github,html
+      
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+      

@@ -3,9 +3,10 @@ import plugin from "bun-plugin-tailwind";
 import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
+import type { WebAppManifest } from "web-app-manifest";
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log(`
+	console.log(`
 🏗️  Bun Build Script
 
 Usage: bun run build.ts [options]
@@ -30,81 +31,100 @@ Common Options:
 Example:
   bun run build.ts --outdir=dist --minify --sourcemap=linked --external=react,react-dom
 `);
-  process.exit(0);
+	process.exit(0);
 }
 
-const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, g => g[1]!.toUpperCase());
+const toCamelCase = (str: string): string =>
+	str.replace(/-([a-z])/g, (g) => g[1]!.toUpperCase());
 
-const parseValue = (value: string): any => {
-  if (value === "true") return true;
-  if (value === "false") return false;
+type ParsedValue =
+	| string
+	| number
+	| boolean
+	| string[]
+	| Record<string, string | number | boolean | string[]>;
 
-  if (/^\d+$/.test(value)) return parseInt(value, 10);
-  if (/^\d*\.\d+$/.test(value)) return parseFloat(value);
+const parseValue = (value: string): ParsedValue => {
+	if (value === "true") return true;
+	if (value === "false") return false;
 
-  if (value.includes(",")) return value.split(",").map(v => v.trim());
+	if (/^\d+$/.test(value)) return parseInt(value, 10);
+	if (/^\d*\.\d+$/.test(value)) return parseFloat(value);
 
-  return value;
+	if (value.includes(",")) return value.split(",").map((v) => v.trim());
+
+	return value;
 };
 
 function parseArgs(): Partial<Bun.BuildConfig> {
-  const config: any = {};
-  const args = process.argv.slice(2);
+	const config: Record<string, ParsedValue | Record<string, ParsedValue>> = {};
+	const args = process.argv.slice(2);
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === undefined) continue;
-    if (!arg.startsWith("--")) continue;
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === undefined) continue;
+		if (!arg.startsWith("--")) continue;
 
-    if (arg.startsWith("--no-")) {
-      const key = toCamelCase(arg.slice(5));
-      config[key] = false;
-      continue;
-    }
+		if (arg.startsWith("--no-")) {
+			const key = toCamelCase(arg.slice(5));
+			config[key] = false;
+			continue;
+		}
 
-    if (!arg.includes("=") && (i === args.length - 1 || args[i + 1]?.startsWith("--"))) {
-      const key = toCamelCase(arg.slice(2));
-      config[key] = true;
-      continue;
-    }
+		if (
+			!arg.includes("=") &&
+			(i === args.length - 1 || args[i + 1]?.startsWith("--"))
+		) {
+			const key = toCamelCase(arg.slice(2));
+			config[key] = true;
+			continue;
+		}
 
-    let key: string;
-    let value: string;
+		let key: string;
+		let value: string;
 
-    if (arg.includes("=")) {
-      [key, value] = arg.slice(2).split("=", 2) as [string, string];
-    } else {
-      key = arg.slice(2);
-      value = args[++i] ?? "";
-    }
+		if (arg.includes("=")) {
+			[key, value] = arg.slice(2).split("=", 2) as [string, string];
+		} else {
+			key = arg.slice(2);
+			value = args[++i] ?? "";
+		}
 
-    key = toCamelCase(key);
+		key = toCamelCase(key);
 
-    if (key.includes(".")) {
-      const [parentKey, childKey] = key.split(".", 2);
-      if (parentKey && childKey) {
-        config[parentKey] = config[parentKey] || {};
-        config[parentKey][childKey] = parseValue(value);
-      }
-    } else {
-      config[key] = parseValue(value);
-    }
-  }
+		if (key.includes(".")) {
+			const [parentKey, childKey] = key.split(".", 2);
+			if (parentKey && childKey) {
+				const parent = config[parentKey];
+				if (
+					typeof parent === "object" &&
+					parent !== null &&
+					!Array.isArray(parent)
+				) {
+					(parent as Record<string, ParsedValue>)[childKey] = parseValue(value);
+				} else {
+					config[parentKey] = { [childKey]: parseValue(value) };
+				}
+			}
+		} else {
+			config[key] = parseValue(value);
+		}
+	}
 
-  return config;
+	return config;
 }
 
 const formatFileSize = (bytes: number): string => {
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
+	const units = ["B", "KB", "MB", "GB"];
+	let size = bytes;
+	let unitIndex = 0;
 
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
+	while (size >= 1024 && unitIndex < units.length - 1) {
+		size /= 1024;
+		unitIndex++;
+	}
 
-  return `${size.toFixed(2)} ${units[unitIndex]}`;
+	return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
 console.log("\n🚀 Starting build process...\n");
@@ -113,63 +133,77 @@ const cliConfig = parseArgs();
 const outdir = cliConfig.outdir || path.join(process.cwd(), "dist");
 
 if (existsSync(outdir)) {
-  console.log(`🗑️ Cleaning previous build at ${outdir}`);
-  await rm(outdir, { recursive: true, force: true });
+	console.log(`🗑️ Cleaning previous build at ${outdir}`);
+	await rm(outdir, { recursive: true, force: true });
 }
 
 const start = performance.now();
 
 const entrypoints = [...new Bun.Glob("**.html").scanSync("src")]
-  .map(a => path.resolve("src", a))
-  .filter(dir => !dir.includes("node_modules"));
-console.log(`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? "file" : "files"} to process\n`);
+	.map((a) => path.resolve("src", a))
+	.filter((dir) => !dir.includes("node_modules"));
+console.log(
+	`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? "file" : "files"} to process\n`,
+);
 
 const result = await Bun.build({
-  entrypoints,
-  outdir,
-  plugins: [plugin],
-  minify: true,
-  target: "browser",
-  sourcemap: "linked",
-  define: {
-    "process.env.NODE_ENV": JSON.stringify("production"),
-  },
-  ...cliConfig,
+	entrypoints,
+	outdir,
+	plugins: [plugin],
+	minify: true,
+	target: "browser",
+	sourcemap: "linked",
+	define: {
+		"process.env.NODE_ENV": JSON.stringify("production"),
+	},
+	...cliConfig,
 });
 
 // Process manifest.json with hashed icon paths
 const manifestSrc = path.join(process.cwd(), "src", "manifest.json");
 if (existsSync(manifestSrc)) {
-  const manifest = await Bun.file(manifestSrc).json();
+	const manifest: WebAppManifest = await Bun.file(manifestSrc).json();
 
-  // Find hashed icon filenames from build output
-  const findHashedAsset = (originalName: string): string => {
-    const baseName = path.basename(originalName, path.extname(originalName));
-    const ext = path.extname(originalName);
-    const output = result.outputs.find(o => {
-      const outputBase = path.basename(o.path);
-      return outputBase.startsWith(baseName) && outputBase.endsWith(ext);
-    });
-    return output ? `./${path.basename(output.path)}` : originalName;
-  };
+	// Find hashed icon filenames from build output
+	const findHashedAsset = (originalName: string): string => {
+		// Normalize the icon path (remove ./ or ../ prefixes)
+		const normalizedName = originalName.replace(/^\.\/|^\.\.\//, "");
+		const baseName = path.basename(
+			normalizedName,
+			path.extname(normalizedName),
+		);
+		const ext = path.extname(normalizedName);
 
-  // Update icon paths in manifest
-  if (manifest.icons) {
-    manifest.icons = manifest.icons.map((icon: { src: string; sizes: string; type: string; purpose?: string }) => ({
-      ...icon,
-      src: findHashedAsset(icon.src),
-    }));
-  }
+		// Find the matching hashed asset by looking for exact basename match with extension
+		const output = result.outputs.find((o) => {
+			const outputBase = path.basename(o.path);
+			const outputNameWithoutHash = outputBase
+				.replace(/\.[a-f0-9]{8}\./, ".") // Remove 8-char hash pattern
+				.replace(/\.[a-f0-9]{16}\./, "."); // Remove 16-char hash pattern
 
-  await Bun.write(path.join(outdir, "manifest.json"), JSON.stringify(manifest));
+			return outputNameWithoutHash === `${baseName}${ext}`;
+		});
+
+		return output ? `./${path.basename(output.path)}` : originalName;
+	};
+
+	// Update icon paths in manifest
+	if (manifest.icons) {
+		manifest.icons = manifest.icons.map((icon) => ({
+			...icon,
+			src: findHashedAsset(icon.src),
+		}));
+	}
+
+	await Bun.write(path.join(outdir, "manifest.json"), JSON.stringify(manifest));
 }
 
 const end = performance.now();
 
-const outputTable = result.outputs.map(output => ({
-  File: path.relative(process.cwd(), output.path),
-  Type: output.kind,
-  Size: formatFileSize(output.size),
+const outputTable = result.outputs.map((output) => ({
+	File: path.relative(process.cwd(), output.path),
+	Type: output.kind,
+	Size: formatFileSize(output.size),
 }));
 
 console.table(outputTable);

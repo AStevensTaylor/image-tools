@@ -1,11 +1,11 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "image-tools",
-  "compatibility_date": "2024-01-01",
-  "assets": {
-    "directory": "./dist",
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "single-page-application"
-  },
-  "preview_urls": true
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "image-tools",
+	"compatibility_date": "2024-01-01",
+	"assets": {
+		"directory": "./dist",
+		"html_handling": "auto-trailing-slash",
+		"not_found_handling": "single-page-application"
+	},
+	"preview_urls": true
 }
