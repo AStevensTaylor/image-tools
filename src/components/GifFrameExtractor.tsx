@@ -503,10 +503,7 @@ export function GifFrameExtractor({
 	const addSelectedToGallery = useCallback(() => {
 		const selected = frames.filter((f) => selectedFrames.has(f.index));
 		selected.forEach((frame, i) => {
-			setTimeout(
-				() => addFrameToGallery(frame),
-				i * FRAME_ADD_DELAY_MS,
-			);
+			setTimeout(() => addFrameToGallery(frame), i * FRAME_ADD_DELAY_MS);
 		});
 	}, [frames, selectedFrames, addFrameToGallery]);
 
