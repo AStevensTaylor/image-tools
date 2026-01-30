@@ -50,7 +50,7 @@ jobs:
           path: |
             ~/.bun
             ~/.bun/bin
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
       

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { MockImageElement, TestWindow } from "../../test/types";
-import { PngConverter } from "./PngConverter";
+import { PngConverter } from "@/components/PngConverter";
 
 const VALID_DATA_URL_PNG =
 	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";

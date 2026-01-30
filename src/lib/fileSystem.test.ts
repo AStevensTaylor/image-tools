@@ -7,7 +7,7 @@ import {
 	requestDirectory,
 	saveFilesToDirectory,
 	saveFileToDirectory,
-} from "./fileSystem";
+} from "@/lib/fileSystem";
 
 interface MockFileSystemFileHandle {
 	name: string;
@@ -124,7 +124,10 @@ class MockDirectoryHandle implements MockFileSystemDirectoryHandle {
 	}
 }
 
+let originalDOMException: typeof DOMException | undefined;
+
 beforeEach(() => {
+	originalDOMException = (global as TestGlobal).DOMException;
 	(global.window as TestWindow).showDirectoryPicker = undefined;
 	(global as TestGlobal).DOMException = class DOMException extends Error {
 		constructor(
@@ -141,6 +144,7 @@ afterEach(() => {
 	if (win && "showDirectoryPicker" in win) {
 		delete win.showDirectoryPicker;
 	}
+	(global as TestGlobal).DOMException = originalDOMException;
 });
 
 test("isFileSystemAccessSupported returns true when showDirectoryPicker exists", () => {
