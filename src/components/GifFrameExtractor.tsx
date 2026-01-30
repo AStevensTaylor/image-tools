@@ -500,6 +500,16 @@ export function GifFrameExtractor({
 		});
 	}, [frames, selectedFrames, downloadFrame]);
 
+	const addSelectedToGallery = useCallback(() => {
+		const selected = frames.filter((f) => selectedFrames.has(f.index));
+		selected.forEach((frame, i) => {
+			setTimeout(
+				() => addFrameToGallery(frame),
+				i * FRAME_ADD_DELAY_MS,
+			);
+		});
+	}, [frames, selectedFrames, addFrameToGallery]);
+
 	const saveToDirectory = useCallback(async () => {
 		const dirHandle = await requestDirectory();
 		if (!dirHandle) return;
@@ -679,17 +689,7 @@ export function GifFrameExtractor({
 						<Button
 							size="sm"
 							variant="outline"
-							onClick={() => {
-								const selected = frames.filter((f) =>
-									selectedFrames.has(f.index),
-								);
-								selected.forEach((frame, i) => {
-									setTimeout(
-										() => addFrameToGallery(frame),
-										i * FRAME_ADD_DELAY_MS,
-									);
-								});
-							}}
+							onClick={addSelectedToGallery}
 							disabled={selectedFrames.size === 0 || isSaving}
 						>
 							Add to Gallery
@@ -749,7 +749,7 @@ export function GifFrameExtractor({
 							>
 								<img
 									src={frame.dataUrl}
-									alt={`Frame ${frame.index}`}
+									alt={`Frame ${frame.index + 1}`}
 									className="w-full h-full object-contain bg-black/5"
 								/>
 								<span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs py-0.5">

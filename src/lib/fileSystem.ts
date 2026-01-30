@@ -317,9 +317,18 @@ export async function saveFileToDirectory(
 	});
 	const writable = await fileHandle.createWritable();
 
-	await writable.write(data);
-
-	await writable.close();
+	try {
+		await writable.write(data);
+	} catch (error) {
+		try {
+			await writable.abort();
+		} catch {
+			// Ignore abort errors
+		}
+		throw error;
+	} finally {
+		await writable.close();
+	}
 }
 
 /**
