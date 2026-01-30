@@ -3,9 +3,11 @@
 **Vendor Code:** Third-party UI primitives from shadcn/ui project
 
 ## OVERVIEW
+
 shadcn/ui base components (Radix UI primitives + Tailwind styling). These are **vendor-supplied patterns**, not application code.
 
 ## STRUCTURE
+
 ```text
 ui/
 ├── button.tsx       # Button with variant system (CVA)
@@ -21,7 +23,7 @@ ui/
 ## WHERE TO LOOK
 
 | Task | Approach |
-|------|----------|
+| ---- | -------- |
 | Add new UI component | Copy from shadcn/ui docs, place here |
 | Modify variant | Edit CVA config in component file |
 | Style adjustment | Modify Tailwind classes in component |
@@ -32,7 +34,7 @@ ui/
 **These files follow shadcn/ui patterns, NOT application patterns:**
 
 | Convention | Pattern | Example |
-|------------|---------|---------|
+| ---------- | ------- | ------- |
 | **Import style** | `import * as React` | Namespace imports |
 | **Export style** | End-of-file | `function Button(...) {}` then `export { Button }` |
 | **Props typing** | `React.ComponentProps<"button">` | Leverage React utility types |
