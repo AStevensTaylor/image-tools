@@ -155,10 +155,17 @@ export function ImageGallery({
 
 	const handleFileChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
-			if (e.target.files && e.target.files.length > 0) {
-				onImagesAdd(e.target.files);
+			const files = e.target.files;
+			if (!files?.length) return;
+			const hasNonImage = Array.from(files).some(
+				(file) => !file.type.startsWith("image/"),
+			);
+			if (hasNonImage) {
 				e.target.value = "";
+				return;
 			}
+			onImagesAdd(files);
+			e.target.value = "";
 		},
 		[onImagesAdd],
 	);
@@ -166,11 +173,16 @@ export function ImageGallery({
 	const handleDrop = useCallback(
 		(e: React.DragEvent) => {
 			e.preventDefault();
-			if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-				onImagesAdd(e.dataTransfer.files);
-			}
+			const files = e.dataTransfer.files;
+			if (!files?.length) return;
+			const hasNonImage = Array.from(files).some(
+				(file) => !file.type.startsWith("image/"),
+			);
+			if (hasNonImage) return;
+			onImagesAdd(files);
 		},
 		[onImagesAdd],
+	);
 	);
 
 	const handleDragOver = useCallback((e: React.DragEvent) => {
