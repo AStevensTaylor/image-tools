@@ -147,6 +147,13 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 	const imageRef = useRef<HTMLImageElement>(null);
 	const initializedPresetsRef = useRef<Set<string>>(new Set());
 
+	// Reset crop boxes when image changes to prevent stale dimensions
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Need to reset crop boxes when image URL changes
+	useEffect(() => {
+		initializedPresetsRef.current.clear();
+		setCropBoxes({});
+	}, [imageUrl]);
+
 	// Check for cached directory on mount
 	useEffect(() => {
 		const checkCache = async () => {
@@ -382,13 +389,14 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 	};
 
 	const downloadAll = async () => {
+		const safePrefix = extractFilenamePrefix(filenamePrefix);
 		const enabledPresets = presets.filter((p) => p.enabled && cropBoxes[p.id]);
 
 		for (const preset of enabledPresets) {
 			const blob = await generateCroppedImage(preset);
 			if (blob) {
 				const link = document.createElement("a");
-				link.download = `${filenamePrefix}_${preset.filename}.png`;
+				link.download = `${safePrefix}_${preset.filename}.png`;
 				link.href = URL.createObjectURL(blob);
 				link.click();
 				await new Promise((r) => setTimeout(r, 100));
@@ -404,12 +412,13 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 		// Update cache status after getting directory
 		setHasCachedDir(true);
 
+		const safePrefix = extractFilenamePrefix(filenamePrefix);
 		const enabledPresets = presets.filter((p) => p.enabled && cropBoxes[p.id]);
 		if (enabledPresets.length === 0) return;
 
 		// Check for existing files
 		const filenames = enabledPresets.map(
-			(preset) => `${filenamePrefix}_${preset.filename}.png`,
+			(preset) => `${safePrefix}_${preset.filename}.png`,
 		);
 		const existingFiles = await checkFilesExist(dirHandle, filenames);
 
@@ -433,7 +442,7 @@ export function BatchCrop({ imageUrl, imageName }: BatchCropProps) {
 				const blob = await generateCroppedImage(preset);
 				if (blob) {
 					files.push({
-						filename: `${filenamePrefix}_${preset.filename}.png`,
+						filename: `${safePrefix}_${preset.filename}.png`,
 						data: blob,
 					});
 				}

@@ -36,7 +36,14 @@ Example:
 const toCamelCase = (str: string): string =>
 	str.replace(/-([a-z])/g, (g) => g[1]!.toUpperCase());
 
-const parseValue = (value: string): any => {
+type ParsedValue =
+	| string
+	| number
+	| boolean
+	| string[]
+	| Record<string, string | number | boolean | string[]>;
+
+const parseValue = (value: string): ParsedValue => {
 	if (value === "true") return true;
 	if (value === "false") return false;
 
@@ -49,7 +56,7 @@ const parseValue = (value: string): any => {
 };
 
 function parseArgs(): Partial<Bun.BuildConfig> {
-	const config: any = {};
+	const config: Record<string, ParsedValue | Record<string, ParsedValue>> = {};
 	const args = process.argv.slice(2);
 
 	for (let i = 0; i < args.length; i++) {
@@ -87,8 +94,16 @@ function parseArgs(): Partial<Bun.BuildConfig> {
 		if (key.includes(".")) {
 			const [parentKey, childKey] = key.split(".", 2);
 			if (parentKey && childKey) {
-				config[parentKey] = config[parentKey] || {};
-				config[parentKey][childKey] = parseValue(value);
+				const parent = config[parentKey];
+				if (
+					typeof parent === "object" &&
+					parent !== null &&
+					!Array.isArray(parent)
+				) {
+					(parent as Record<string, ParsedValue>)[childKey] = parseValue(value);
+				} else {
+					config[parentKey] = { [childKey]: parseValue(value) };
+				}
 			}
 		} else {
 			config[key] = parseValue(value);

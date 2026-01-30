@@ -64,10 +64,21 @@ self.addEventListener("fetch", (event) => {
 					}
 					return response;
 				})
-				.catch(() => {
+				.catch(async () => {
 					// Return offline fallback for navigation requests
 					if (request.mode === "navigate") {
-						return caches.match("/index.html");
+						const cachedIndex = await caches.match("/index.html");
+						if (cachedIndex) {
+							return cachedIndex;
+						}
+						// Return offline HTML if index.html not cached
+						return new Response(
+							"<!DOCTYPE html><html><head><title>Offline</title></head><body><h1>Offline</h1><p>Unable to load application. Please check your connection.</p></body></html>",
+							{
+								status: 503,
+								headers: { "Content-Type": "text/html" },
+							},
+						);
 					}
 					return new Response("Offline", { status: 503 });
 				});

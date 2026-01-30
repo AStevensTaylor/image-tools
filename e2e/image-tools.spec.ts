@@ -1,4 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+/**
+ * Helper function to close the settings dialog
+ * Attempts to click the Close button, falls back to Escape key if not visible
+ */
+async function closeSettingsDialog(page: Page): Promise<void> {
+	const closeButton = page.locator("button[aria-label='Close']").first();
+	const isVisible = await closeButton
+		.isVisible({ timeout: 1000 })
+		.catch(() => false);
+	if (isVisible) {
+		await closeButton.click();
+	} else {
+		await page.keyboard.press("Escape");
+	}
+}
 
 test.describe("Image Tools E2E Tests", () => {
 	test.beforeEach(async ({ page }) => {
@@ -14,15 +30,14 @@ test.describe("Image Tools E2E Tests", () => {
 			const galleryImage = page.locator('img[alt="test-image.png"]');
 			await expect(galleryImage).toBeVisible({ timeout: 5000 });
 
-			const imageThumbnails = page.locator('div[class*="aspect-square"]');
-			const count = await imageThumbnails.count();
-			expect(count).toBeGreaterThan(0);
+			const imageThumbnails = page.locator('img[alt*="test-image"]');
+			expect(await imageThumbnails.count()).toBeGreaterThan(0);
 		});
 
 		test("should select uploaded image", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const imageThumbnail = page
 				.locator('div[class*="aspect-square"]')
@@ -36,12 +51,12 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should upload multiple images", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			const imageThumbnails = page.locator('img[alt*="test-image"]');
+			await expect(imageThumbnails).toHaveCount(2, { timeout: 5000 });
 
-			const imageThumbnails = page.locator('div[class*="aspect-square"]');
 			const count = await imageThumbnails.count();
 			expect(count).toBe(2);
 		});
@@ -67,33 +82,31 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should select Aspect Ratio Crop tool", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1500);
-
-			const body = page.locator("body");
-			const content = await body.innerHTML();
-			expect(content.length).toBeGreaterThan(0);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 		});
 
 		test("should switch between different tools", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const pngButton = page.locator("button", { hasText: /Convert to PNG/i });
 			await pngButton.click();
-			await page.waitForTimeout(500);
+			await expect(
+				page.locator("h2", { hasText: /PNG Converter/i }),
+			).toBeVisible({ timeout: 5000 });
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1500);
-
-			const body = page.locator("body");
-			const content = await body.innerHTML();
-			expect(content.length).toBeGreaterThan(0);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible({ timeout: 5000 });
 		});
 	});
 
@@ -101,46 +114,48 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should display preset aspect ratios", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1000);
-
-			const buttons = page.locator("button", { hasText: /16:9/ });
-			const count = await buttons.count();
-			expect(count).toBeGreaterThanOrEqual(0);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 		});
 
 		test("should select 16:9 aspect ratio preset", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1000);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 
 			const preset169 = page.locator("button", { hasText: /16:9/i }).first();
 			if ((await preset169.count()) > 0) {
 				await preset169.click();
-				await page.waitForTimeout(500);
+				await expect(preset169).toHaveClass(/bg-primary|border-primary/);
 			}
 		});
 
 		test("should interact with crop controls", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1000);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 
 			const preset169 = page.locator("button", { hasText: /16:9/i }).first();
 			if ((await preset169.count()) > 0) {
 				await preset169.click();
-				await page.waitForTimeout(500);
+				await expect(preset169).toHaveClass(/bg-primary|border-primary/);
 			}
 		});
 	});
@@ -149,25 +164,25 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should display PNG converter controls", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const pngButton = page.locator("button", { hasText: /Convert to PNG/i });
 			await pngButton.click();
-			await page.waitForTimeout(500);
-
-			const body = page.locator("body");
-			const content = await body.innerHTML();
-			expect(content.length).toBeGreaterThan(0);
+			await expect(
+				page.locator("h2", { hasText: /PNG Converter/i }),
+			).toBeVisible();
 		});
 
 		test("should display convert button", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const pngButton = page.locator("button", { hasText: /Convert to PNG/i });
 			await pngButton.click();
-			await page.waitForTimeout(500);
+			await expect(
+				page.locator("h2", { hasText: /PNG Converter/i }),
+			).toBeVisible();
 
 			const buttons = page.locator("button");
 			const convertButton = buttons.filter({
@@ -202,17 +217,10 @@ test.describe("Image Tools E2E Tests", () => {
 			const darkLabel = page.locator("label", { hasText: /Dark/i });
 			if ((await darkLabel.count()) > 0) {
 				await darkLabel.click();
-				await page.waitForTimeout(500);
+				await expect(page.locator("html.dark")).toBeAttached({ timeout: 5000 });
 			}
 
-			const closeButton = page.locator("button[aria-label='Close']").first();
-			if ((await closeButton.isVisible().catch(() => false)) !== false) {
-				await closeButton.click();
-			} else {
-				await page.keyboard.press("Escape");
-			}
-
-			await page.waitForTimeout(500);
+			await closeSettingsDialog(page);
 		});
 
 		test("should change export format to webp", async ({ page }) => {
@@ -225,17 +233,9 @@ test.describe("Image Tools E2E Tests", () => {
 			const webpLabel = page.locator("label", { hasText: /WebP/i });
 			if ((await webpLabel.count()) > 0) {
 				await webpLabel.click();
-				await page.waitForTimeout(500);
 			}
 
-			const closeButton = page.locator("button[aria-label='Close']").first();
-			if ((await closeButton.isVisible().catch(() => false)) !== false) {
-				await closeButton.click();
-			} else {
-				await page.keyboard.press("Escape");
-			}
-
-			await page.waitForTimeout(500);
+			await closeSettingsDialog(page);
 		});
 
 		test("should close settings dialog", async ({ page }) => {
@@ -245,12 +245,7 @@ test.describe("Image Tools E2E Tests", () => {
 			const settingsDialog = page.locator("div[role='dialog']");
 			await expect(settingsDialog).toBeVisible({ timeout: 5000 });
 
-			const closeButton = page.locator("button[aria-label='Close']").first();
-			if ((await closeButton.isVisible().catch(() => false)) !== false) {
-				await closeButton.click();
-			} else {
-				await page.keyboard.press("Escape");
-			}
+			await closeSettingsDialog(page);
 
 			await expect(settingsDialog).not.toBeVisible({ timeout: 5000 });
 		});
@@ -267,12 +262,12 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should select different images sequentially", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			const thumbnails = page.locator('img[alt*="test-image"]');
+			await expect(thumbnails).toHaveCount(2, { timeout: 5000 });
 
-			const thumbnails = page.locator('div[class*="aspect-square"]');
 			const count = await thumbnails.count();
 			expect(count).toBe(2);
 
@@ -292,38 +287,41 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should reflect selection in tool display", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			const thumbnails = page.locator('img[alt*="test-image"]');
+			await expect(thumbnails).toHaveCount(2, { timeout: 5000 });
 
 			const cropButton = page.locator("button", { hasText: /Aspect Crop/i });
 			await cropButton.click();
-			await page.waitForTimeout(1500);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 
-			const thumbnails = page.locator('div[class*="aspect-square"]');
-			if ((await thumbnails.count()) > 1) {
-				await thumbnails.nth(1).click();
-				await page.waitForTimeout(500);
+			const thumbnailContainers = page.locator('div[class*="aspect-square"]');
+			if ((await thumbnailContainers.count()) > 1) {
+				await thumbnailContainers.nth(1).click();
+				await expect(thumbnailContainers.nth(1)).toHaveClass(/border-primary/);
 			}
 		});
 
 		test("should remove image from gallery", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(500);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
-			let thumbnails = page.locator('div[class*="aspect-square"]');
+			let thumbnails = page.locator('img[alt*="test-image"]');
 			let count = await thumbnails.count();
 			expect(count).toBe(1);
 
 			const removeButton = page.locator("button[aria-label*='Remove image']");
 			if ((await removeButton.count()) > 0) {
 				await removeButton.click();
-				await page.waitForTimeout(500);
+				await expect(thumbnails).toHaveCount(0);
 			}
 
-			thumbnails = page.locator('div[class*="aspect-square"]');
+			thumbnails = page.locator('img[alt*="test-image"]');
 			count = await thumbnails.count();
 			expect(count).toBe(0);
 		});
@@ -356,7 +354,7 @@ test.describe("Image Tools E2E Tests", () => {
 		test("should maintain state after tool switching", async ({ page }) => {
 			const fileInput = page.locator('input[type="file"]');
 			await fileInput.setInputFiles("e2e/fixtures/test-image.png");
-			await page.waitForTimeout(1000);
+			await expect(page.locator('img[alt="test-image.png"]')).toBeVisible();
 
 			const imageThumbnails = page.locator('div[class*="aspect-square"]');
 			await expect(imageThumbnails).toHaveCount(1);
@@ -365,13 +363,19 @@ test.describe("Image Tools E2E Tests", () => {
 			const pngButton = page.locator("button", { hasText: /Convert to PNG/i });
 
 			await cropButton.click();
-			await page.waitForTimeout(300);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 
 			await pngButton.click();
-			await page.waitForTimeout(300);
+			await expect(
+				page.locator("h2", { hasText: /PNG Converter/i }),
+			).toBeVisible();
 
 			await cropButton.click();
-			await page.waitForTimeout(300);
+			await expect(
+				page.locator("h2", { hasText: /Aspect Ratio Crop/i }),
+			).toBeVisible();
 
 			const finalThumbnails = page.locator('div[class*="aspect-square"]');
 			await expect(finalThumbnails).toHaveCount(1);

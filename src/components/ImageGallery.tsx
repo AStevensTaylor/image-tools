@@ -92,15 +92,19 @@ function ImageThumbnail({
 	}, [image.url]);
 
 	return (
-		<div
+		<button
+			type="button"
 			className={cn(
 				"relative rounded-md overflow-hidden cursor-pointer border-2 transition-all",
 				"aspect-square min-w-[120px] md:min-w-0",
 				isSelected
 					? "border-primary ring-2 ring-primary/20"
 					: "border-transparent hover:border-muted-foreground/30",
+				"bg-transparent p-0 h-auto appearance-none",
 			)}
 			onClick={onSelect}
+			aria-pressed={isSelected}
+			aria-label={`Image ${image.file.name}`}
 		>
 			<img
 				src={image.url}
@@ -124,7 +128,7 @@ function ImageThumbnail({
 					{getAspectRatio(dimensions.width, dimensions.height)}
 				</div>
 			)}
-		</div>
+		</button>
 	);
 }
 

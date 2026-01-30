@@ -171,6 +171,16 @@ export function useSettings() {
 }
 
 /**
+ * Helper function to ensure exhaustiveness checks at compile time.
+ * TypeScript will error if an unhandled value is passed.
+ * @param value - Should never be reached if all cases are handled
+ * @throws Always throws with descriptive error message
+ */
+function assertUnreachable(value: never): never {
+	throw new Error(`Unhandled export format: ${String(value)}`);
+}
+
+/**
  * Returns the MIME type string for the specified export format.
  * @param format - Export format identifier ("png", "webp", or "jpg")
  * @returns Corresponding MIME type string
@@ -183,6 +193,8 @@ export function getExportMimeType(format: ExportFormat): string {
 			return "image/webp";
 		case "jpg":
 			return "image/jpeg";
+		default:
+			return assertUnreachable(format);
 	}
 }
 
@@ -199,5 +211,7 @@ export function getExportExtension(format: ExportFormat): string {
 			return "webp";
 		case "jpg":
 			return "jpg";
+		default:
+			return assertUnreachable(format);
 	}
 }

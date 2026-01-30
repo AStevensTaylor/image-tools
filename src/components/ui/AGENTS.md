@@ -6,7 +6,7 @@
 shadcn/ui base components (Radix UI primitives + Tailwind styling). These are **vendor-supplied patterns**, not application code.
 
 ## STRUCTURE
-```
+```text
 ui/
 ├── button.tsx       # Button with variant system (CVA)
 ├── card.tsx         # Card layout primitives
@@ -89,7 +89,7 @@ export function AspectRatioCrop({ imageUrl }: Props) { ... }
 - No JSDoc because these are **not our abstractions**
 
 **When Adding New Components:**
-1. Visit https://ui.shadcn.com/
+1. Visit <https://ui.shadcn.com/>
 2. Copy component code as-is
 3. Place in this directory
 4. **Do NOT refactor to match app style**

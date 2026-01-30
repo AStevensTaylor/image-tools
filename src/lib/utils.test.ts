@@ -31,9 +31,10 @@ test("cn: tailwind conflict resolution - later value wins", () => {
 	expect(result).not.toContain("px-2");
 });
 
-test("cn: tailwind padding conflict - width takes precedence", () => {
+test("cn: more specific horizontal padding overrides general padding (px-4 overrides p-2 horizontally)", () => {
 	const result = cn("p-2", "px-4");
 	expect(result).toContain("px-4");
+	expect(result).toContain("p-2");
 });
 
 test("cn: falsy values are ignored - null", () => {
@@ -113,8 +114,8 @@ test("cn: size class resolution", () => {
 
 test("cn: display class resolution", () => {
 	const result = cn("flex", "grid");
-	const resultStr = result.toString();
-	expect(resultStr.length).toBeGreaterThan(0);
+	expect(result).toContain("grid");
+	expect(result).not.toContain("flex");
 });
 
 test("cn: complex real-world scenario - button styling", () => {

@@ -1,4 +1,5 @@
 import { Settings as SettingsIcon } from "lucide-react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -17,8 +18,45 @@ import { type ExportFormat, type Theme, useSettings } from "@/lib/settings";
  * Allows customization of appearance theme and image export format/quality.
  * @returns The rendered settings dialog component
  */
+
+/**
+ * Type guard to validate if a string is a valid Theme value.
+ * @param value - The value to check
+ * @returns True if value is a valid Theme type
+ */
+function isTheme(value: string): value is Theme {
+	return ["light", "dark", "system"].includes(value);
+}
+
+/**
+ * Type guard to validate if a string is a valid ExportFormat value.
+ * @param value - The value to check
+ * @returns True if value is a valid ExportFormat type
+ */
+function isExportFormat(value: string): value is ExportFormat {
+	return ["png", "webp", "jpg"].includes(value);
+}
+
 export function SettingsDialog() {
 	const { settings, setTheme, setExportFormat } = useSettings();
+
+	const onThemeChange = useCallback(
+		(value: string) => {
+			if (isTheme(value)) {
+				setTheme(value);
+			}
+		},
+		[setTheme],
+	);
+
+	const onExportFormatChange = useCallback(
+		(value: string) => {
+			if (isExportFormat(value)) {
+				setExportFormat(value);
+			}
+		},
+		[setExportFormat],
+	);
 
 	return (
 		<Dialog>
@@ -38,10 +76,7 @@ export function SettingsDialog() {
 					{/* Theme Settings */}
 					<div className="space-y-3">
 						<Label className="text-base font-semibold">Appearance</Label>
-						<RadioGroup
-							value={settings.theme}
-							onValueChange={(value) => setTheme(value as Theme)}
-						>
+						<RadioGroup value={settings.theme} onValueChange={onThemeChange}>
 							<div className="flex items-center space-x-2">
 								<RadioGroupItem value="light" id="light" />
 								<Label htmlFor="light" className="font-normal cursor-pointer">
@@ -68,7 +103,7 @@ export function SettingsDialog() {
 						<Label className="text-base font-semibold">Export Format</Label>
 						<RadioGroup
 							value={settings.exportFormat}
-							onValueChange={(value) => setExportFormat(value as ExportFormat)}
+							onValueChange={onExportFormatChange}
 						>
 							<div className="flex items-center space-x-2">
 								<RadioGroupItem value="png" id="png" />

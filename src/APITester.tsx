@@ -20,9 +20,25 @@ export function APITester() {
 		try {
 			const form = e.currentTarget;
 			const formData = new FormData(form);
-			const endpoint = formData.get("endpoint") as string;
+			const endpointValue = formData.get("endpoint");
+			if (
+				!endpointValue ||
+				typeof endpointValue !== "string" ||
+				!endpointValue.trim()
+			) {
+				throw new Error("Endpoint is required and must be a non-empty string");
+			}
+			const endpoint = endpointValue;
 			const url = new URL(endpoint, location.href);
-			const method = formData.get("method") as string;
+			const methodValue = formData.get("method");
+			if (
+				!methodValue ||
+				typeof methodValue !== "string" ||
+				!methodValue.trim()
+			) {
+				throw new Error("Method is required and must be a non-empty string");
+			}
+			const method = methodValue;
 			const res = await fetch(url, { method });
 
 			const data = await res.json();

@@ -3,8 +3,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { MockImageElement, TestWindow } from "../../test/types";
 import { PngConverter } from "./PngConverter";
 
-const VALID_DATA_URL =
+const VALID_DATA_URL_PNG =
 	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const VALID_DATA_URL_JPEG =
+	"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=";
+const VALID_DATA_URL_GIF =
+	"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
+const VALID_DATA_URL_WEBP =
+	"data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=";
 
 let imageInstances: MockImageElement[] = [];
 let _pendingLoadCallbacks: Array<() => void> = [];
@@ -80,9 +86,16 @@ beforeEach(() => {
 	(window as TestWindow).addGeneratedImage = vi.fn(() => undefined);
 });
 
-test("renders component with imageUrl and imageName props", () => {
+test.each([
+	{ format: "PNG", dataUrl: VALID_DATA_URL_PNG },
+	{ format: "JPEG", dataUrl: VALID_DATA_URL_JPEG },
+	{ format: "GIF", dataUrl: VALID_DATA_URL_GIF },
+	{ format: "WebP", dataUrl: VALID_DATA_URL_WEBP },
+])("renders component with $format imageUrl and imageName props", ({
+	dataUrl,
+}) => {
 	const { container } = render(
-		<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+		<PngConverter imageUrl={dataUrl} imageName="test-image.jpg" />,
 	);
 
 	const heading = queryByText(container, "Convert to PNG");
@@ -92,9 +105,16 @@ test("renders component with imageUrl and imageName props", () => {
 	expect(previewContainer).toBeTruthy();
 });
 
-test("shows 'Convert to PNG' button initially", () => {
+test.each([
+	{ format: "PNG", dataUrl: VALID_DATA_URL_PNG },
+	{ format: "JPEG", dataUrl: VALID_DATA_URL_JPEG },
+	{ format: "GIF", dataUrl: VALID_DATA_URL_GIF },
+	{ format: "WebP", dataUrl: VALID_DATA_URL_WEBP },
+])("shows 'Convert to PNG' button initially for $format format", ({
+	dataUrl,
+}) => {
 	const { container } = render(
-		<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+		<PngConverter imageUrl={dataUrl} imageName="test-image.jpg" />,
 	);
 
 	const button = container.querySelector("button");
@@ -118,7 +138,7 @@ test("shows 'Convert to PNG' button initially", () => {
 describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 	test("converts image when Convert button is clicked", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -163,7 +183,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 		} as unknown as typeof Image;
 
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -177,7 +197,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("shows Download PNG button after conversion", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -191,7 +211,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("shows Reconvert button after conversion", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -205,7 +225,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("download button functionality after conversion", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="photo.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="photo.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -222,7 +242,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 		(window as TestWindow).addGeneratedImage = vi.fn(() => undefined);
 
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -241,7 +261,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 		(window as TestWindow).addGeneratedImage = addToGalleryMock;
 
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -259,7 +279,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("allows reconversion after initial conversion", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");
@@ -280,7 +300,7 @@ describe.skip("PNG conversion flow tests (covered by E2E tests)", () => {
 
 	test("shows transparency preservation message", async () => {
 		const { container } = render(
-			<PngConverter imageUrl={VALID_DATA_URL} imageName="test-image.jpg" />,
+			<PngConverter imageUrl={VALID_DATA_URL_PNG} imageName="test-image.jpg" />,
 		);
 
 		const convertButton = queryByText(container, "Convert to PNG");

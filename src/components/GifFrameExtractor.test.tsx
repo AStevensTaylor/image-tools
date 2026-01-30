@@ -17,6 +17,17 @@ const renderWithSettings = (component: ReactElement) => {
 	return render(<SettingsProvider>{component}</SettingsProvider>);
 };
 
+const stubFetch = (
+	impl: (url: string) => Promise<{
+		ok: boolean;
+		status?: number;
+		statusText?: string;
+		arrayBuffer?: () => Promise<ArrayBuffer>;
+	}>,
+) => {
+	global.fetch = impl as unknown as typeof fetch;
+};
+
 const queryByText = (container: HTMLElement, text: string | RegExp) => {
 	const walker = document.createTreeWalker(
 		container,
@@ -75,10 +86,12 @@ const queryByLabelText = (container: HTMLElement, text: string) => {
 };
 
 test("renders without crashing", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves, keeps loading state
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves, keeps loading state
+			}),
+	);
 
 	renderWithSettings(
 		<GifFrameExtractor
@@ -92,10 +105,12 @@ test("renders without crashing", () => {
 });
 
 test("shows loading state initially", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -110,10 +125,12 @@ test("shows loading state initially", () => {
 });
 
 test("shows GIF Frame Extractor title", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -127,13 +144,13 @@ test("shows GIF Frame Extractor title", () => {
 });
 
 test("shows error on fetch failure", async () => {
-	global.fetch = ((url: string) => {
+	stubFetch((url: string) => {
 		return Promise.resolve({
 			ok: false,
 			status: 404,
 			statusText: "Not Found",
 		});
-	}) as unknown as typeof fetch;
+	});
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -150,13 +167,13 @@ test("shows error on fetch failure", async () => {
 });
 
 test("shows error for unsupported file type", async () => {
-	global.fetch = ((url: string) => {
+	stubFetch((url: string) => {
 		const buffer = new ArrayBuffer(100);
 		return Promise.resolve({
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as unknown as typeof fetch;
+	});
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -172,17 +189,63 @@ test("shows error for unsupported file type", async () => {
 	});
 });
 
-test("shows error for WebP without ImageDecoder", async () => {
-	const originalImageDecoder = (global as TestGlobal).ImageDecoder;
-	delete (global as TestGlobal).ImageDecoder;
-
-	global.fetch = ((url: string) => {
+test("shows error for unsupported PNG file type", async () => {
+	stubFetch((url: string) => {
 		const buffer = new ArrayBuffer(100);
 		return Promise.resolve({
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as unknown as typeof fetch;
+	});
+
+	const { container } = renderWithSettings(
+		<GifFrameExtractor
+			imageUrl="test://image.png"
+			imageName="test.png"
+			fileType="image/png"
+		/>,
+	);
+
+	await waitFor(() => {
+		const error = queryByText(container, /Unsupported file type/);
+		expect(error).toBeDefined();
+	});
+});
+
+test("shows error for unsupported JPEG file type", async () => {
+	stubFetch((url: string) => {
+		const buffer = new ArrayBuffer(100);
+		return Promise.resolve({
+			ok: true,
+			arrayBuffer: () => Promise.resolve(buffer),
+		});
+	});
+
+	const { container } = renderWithSettings(
+		<GifFrameExtractor
+			imageUrl="test://image.jpg"
+			imageName="test.jpg"
+			fileType="image/jpeg"
+		/>,
+	);
+
+	await waitFor(() => {
+		const error = queryByText(container, /Unsupported file type/);
+		expect(error).toBeDefined();
+	});
+});
+
+test("shows error for WebP without ImageDecoder", async () => {
+	const originalImageDecoder = (global as TestGlobal).ImageDecoder;
+	delete (global as TestGlobal).ImageDecoder;
+
+	stubFetch((url: string) => {
+		const buffer = new ArrayBuffer(100);
+		return Promise.resolve({
+			ok: true,
+			arrayBuffer: () => Promise.resolve(buffer),
+		});
+	});
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -203,10 +266,12 @@ test("shows error for WebP without ImageDecoder", async () => {
 });
 
 test("displays component structure with playback controls", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -222,10 +287,12 @@ test("displays component structure with playback controls", () => {
 });
 
 test("displays selection controls", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -244,10 +311,12 @@ test("displays selection controls", () => {
 });
 
 test("displays download and export buttons", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -263,10 +332,12 @@ test("displays download and export buttons", () => {
 });
 
 test("download button is disabled initially", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -278,13 +349,18 @@ test("download button is disabled initially", () => {
 
 	const downloadButton = queryByText(container, "Download");
 	expect(downloadButton).toBeDefined();
+	if (downloadButton) {
+		expect(downloadButton).toBeDisabled();
+	}
 });
 
 test("add to gallery button is disabled initially", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -296,13 +372,18 @@ test("add to gallery button is disabled initially", () => {
 
 	const addButton = queryByText(container, "Add to Gallery");
 	expect(addButton).toBeDefined();
+	if (addButton) {
+		expect(addButton).toBeDisabled();
+	}
 });
 
 test("save to folder button is disabled initially", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -314,13 +395,18 @@ test("save to folder button is disabled initially", () => {
 
 	const saveButton = queryByText(container, "Save to Folder");
 	expect(saveButton).toBeDefined();
+	if (saveButton) {
+		expect(saveButton).toBeDisabled();
+	}
 });
 
 test("displays frame selection counter", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -335,10 +421,12 @@ test("displays frame selection counter", () => {
 });
 
 test("component accepts different file types", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { unmount: unmount1, container } = renderWithSettings(
 		<GifFrameExtractor
@@ -353,13 +441,13 @@ test("component accepts different file types", () => {
 });
 
 test("shows error when parse fails for GIF", async () => {
-	global.fetch = ((url: string) => {
+	stubFetch((url: string) => {
 		const buffer = new ArrayBuffer(0);
 		return Promise.resolve({
 			ok: true,
 			arrayBuffer: () => Promise.resolve(buffer),
 		});
-	}) as unknown as typeof fetch;
+	});
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -379,13 +467,13 @@ test("shows error when parse fails for GIF", async () => {
 });
 
 test("hides loading when error occurs", async () => {
-	global.fetch = ((url: string) => {
+	stubFetch((url: string) => {
 		return Promise.resolve({
 			ok: false,
 			status: 404,
 			statusText: "Not Found",
 		});
-	}) as unknown as typeof fetch;
+	});
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -402,10 +490,12 @@ test("hides loading when error occurs", async () => {
 });
 
 test("component renders with SettingsProvider context", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { container } = renderWithSettings(
 		<GifFrameExtractor
@@ -419,10 +509,12 @@ test("component renders with SettingsProvider context", () => {
 });
 
 test("cleanup works on unmount", () => {
-	global.fetch = (() =>
-		new Promise(() => {
-			// Never resolves
-		})) as unknown as typeof fetch;
+	stubFetch(
+		() =>
+			new Promise(() => {
+				// Never resolves
+			}),
+	);
 
 	const { unmount } = renderWithSettings(
 		<GifFrameExtractor

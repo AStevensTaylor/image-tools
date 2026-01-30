@@ -1,11 +1,18 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test } from "vitest";
+import type { WindowWithGallery } from "@/lib/gallery";
 import { SettingsProvider } from "@/lib/settings";
-import type { TestWindow } from "../../test/types";
 import { AspectRatioCrop } from "./AspectRatioCrop";
 
 const VALID_DATA_URL =
 	"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const VALID_DATA_URL_PNG = VALID_DATA_URL;
+const VALID_DATA_URL_JPEG =
+	"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDAREAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=";
+const VALID_DATA_URL_GIF =
+	"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+const VALID_DATA_URL_WEBP =
+	"data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=";
 const VALID_HTTPS_URL = "https://example.com/image.png";
 const VALID_HTTP_URL = "http://example.com/image.png";
 const VALID_BLOB_URL = "blob:https://example.com/12345678";
@@ -18,11 +25,26 @@ function renderWithSettings(component: React.ReactNode) {
 }
 
 beforeEach(() => {
-	(window as TestWindow).addGeneratedImage = () => undefined;
+	(window as WindowWithGallery).addGeneratedImage = () => undefined;
 });
 
 afterEach(() => {
-	delete (window as TestWindow).addGeneratedImage;
+	delete (window as WindowWithGallery).addGeneratedImage;
+});
+
+test.each([
+	["PNG", VALID_DATA_URL_PNG],
+	["JPEG", VALID_DATA_URL_JPEG],
+	["GIF", VALID_DATA_URL_GIF],
+	["WebP", VALID_DATA_URL_WEBP],
+])("renders component with valid %s URL", (_format, dataUrl) => {
+	const { container } = renderWithSettings(
+		<AspectRatioCrop imageUrl={dataUrl} imageName="test.png" />,
+	);
+
+	expect(container).toBeTruthy();
+	const heading = container.querySelector("h2");
+	expect(heading?.textContent).toContain("Aspect Ratio Crop");
 });
 
 test("renders component with valid URL", () => {
@@ -188,7 +210,7 @@ test("renders Download Crop button", () => {
 });
 
 test("renders Add to Gallery button when callback available", () => {
-	(window as TestWindow).addGeneratedImage = () => undefined;
+	(window as WindowWithGallery).addGeneratedImage = () => undefined;
 
 	const { container } = renderWithSettings(
 		<AspectRatioCrop imageUrl={VALID_DATA_URL} imageName="test.png" />,
@@ -202,7 +224,7 @@ test("renders Add to Gallery button when callback available", () => {
 });
 
 test("does not render Add to Gallery button when callback unavailable", () => {
-	delete (window as TestWindow).addGeneratedImage;
+	delete (window as WindowWithGallery).addGeneratedImage;
 
 	const { container } = renderWithSettings(
 		<AspectRatioCrop imageUrl={VALID_DATA_URL} imageName="test.png" />,
@@ -220,9 +242,7 @@ test("renders image with draggable false", () => {
 		<AspectRatioCrop imageUrl={VALID_DATA_URL} imageName="test.png" />,
 	);
 
-	const img = container.querySelector(
-		'img[alt="Image to crop"]',
-	) as HTMLImageElement;
+	const img = container.querySelector('img[alt="Image to crop"]');
 	expect(img?.getAttribute("draggable")).toBe("false");
 });
 

@@ -88,6 +88,7 @@ export async function saveCachedDirectory(
 		});
 	} catch (err) {
 		console.error("Failed to save directory handle:", err);
+		throw err;
 	}
 }
 
@@ -390,11 +391,8 @@ export function dataUrlToBlob(dataUrl: string): Blob {
 	const mimeMatch = header.match(/:(.*?);/);
 	const mime = mimeMatch ? mimeMatch[1] : "image/png";
 
-	// Validate MIME type against whitelist
-	if (
-		mimeMatch &&
-		!RASTER_MIME_TYPES.includes(mime as (typeof RASTER_MIME_TYPES)[number])
-	) {
+	// Validate MIME type against whitelist (always validate final mime value)
+	if (!RASTER_MIME_TYPES.includes(mime as (typeof RASTER_MIME_TYPES)[number])) {
 		throw new Error(
 			`Invalid MIME type: ${mime}. Allowed types: ${RASTER_MIME_TYPES.join(", ")}`,
 		);

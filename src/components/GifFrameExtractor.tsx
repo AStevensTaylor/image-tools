@@ -22,7 +22,6 @@ import {
 import type { WindowWithGallery } from "@/lib/gallery";
 import {
 	type ExportFormat,
-	getExportExtension,
 	getExportMimeType,
 	useSettings,
 } from "@/lib/settings";
@@ -333,6 +332,31 @@ export function GifFrameExtractor({
 	}, [isPlaying, currentFrame, frames]);
 
 	/**
+	 * Extracts the file extension from a data URL by parsing its MIME type.
+	 * Maps MIME types to appropriate file extensions.
+	 * @param dataUrl - The data URL to extract MIME type from (e.g., "data:image/png;base64,...")
+	 * @returns File extension without dot (e.g., "png", "jpg", "webp"), defaults to "png"
+	 */
+	const getExtensionFromDataUrl = useCallback((dataUrl: string): string => {
+		const match = dataUrl.match(/^data:([^;]+);/);
+		if (!match) {
+			return "png"; // Default fallback
+		}
+
+		const mimeType = match[1];
+		switch (mimeType) {
+			case "image/png":
+				return "png";
+			case "image/jpeg":
+				return "jpg";
+			case "image/webp":
+				return "webp";
+			default:
+				return "png"; // Fallback for unknown types
+		}
+	}, []);
+
+	/**
 	 * Sanitizes a filename by removing directory components and unsafe characters.
 	 * @param name - The original filename to sanitize
 	 * @returns A safe filename with no path separators or control characters
@@ -425,12 +449,18 @@ export function GifFrameExtractor({
 		(frame: Frame) => {
 			const link = document.createElement("a");
 			const baseName = sanitizeBaseName(imageName);
-			const extension = getExportExtension(settings.exportFormat);
+			const dataUrl = convertFrameToFormat(frame);
+			const extension = getExtensionFromDataUrl(dataUrl);
 			link.download = `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`;
-			link.href = convertFrameToFormat(frame);
+			link.href = dataUrl;
 			link.click();
 		},
-		[imageName, settings.exportFormat, sanitizeBaseName, convertFrameToFormat],
+		[
+			imageName,
+			sanitizeBaseName,
+			convertFrameToFormat,
+			getExtensionFromDataUrl,
+		],
 	);
 
 	const addFrameToGallery = useCallback(
@@ -438,18 +468,19 @@ export function GifFrameExtractor({
 			const addToGallery = getAddToGallery();
 			if (!addToGallery) return;
 			const baseName = sanitizeBaseName(imageName);
-			const extension = getExportExtension(settings.exportFormat);
+			const dataUrl = convertFrameToFormat(frame);
+			const extension = getExtensionFromDataUrl(dataUrl);
 			addToGallery(
-				convertFrameToFormat(frame),
+				dataUrl,
 				`${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
 			);
 		},
 		[
 			imageName,
-			settings.exportFormat,
 			sanitizeBaseName,
 			getAddToGallery,
 			convertFrameToFormat,
+			getExtensionFromDataUrl,
 		],
 	);
 
@@ -475,12 +506,15 @@ export function GifFrameExtractor({
 
 		try {
 			const baseName = sanitizeBaseName(imageName);
-			const extension = getExportExtension(settings.exportFormat);
-			const files = selected.map((frame) => ({
-				filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
-				data: dataUrlToBlob(convertFrameToFormat(frame)),
-				subPath: "frames",
-			}));
+			const files = selected.map((frame) => {
+				const dataUrl = convertFrameToFormat(frame);
+				const extension = getExtensionFromDataUrl(dataUrl);
+				return {
+					filename: `${baseName}-frame-${frame.index.toString().padStart(4, "0")}.${extension}`,
+					data: dataUrlToBlob(dataUrl),
+					subPath: "frames",
+				};
+			});
 
 			await saveFilesToDirectory(dirHandle, files, (current, total) => {
 				setSaveProgress({ current, total });
@@ -494,9 +528,9 @@ export function GifFrameExtractor({
 		frames,
 		selectedFrames,
 		imageName,
-		settings.exportFormat,
 		sanitizeBaseName,
 		convertFrameToFormat,
+		getExtensionFromDataUrl,
 	]);
 
 	const handleResetDirectory = useCallback(async () => {

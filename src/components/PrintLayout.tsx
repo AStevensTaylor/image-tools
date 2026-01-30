@@ -71,6 +71,22 @@ const DEFAULT_IMAGE_MARGIN = 5; // mm
 const CUT_MARKER_LENGTH = 5; // mm
 const MM_TO_PX = 3.7795275591; // 1mm = ~3.78px at 96 DPI
 
+/**
+ * Validates if a URL is safe for use as an image source.
+ * Only allows specific protocols to prevent XSS attacks.
+ * @param url - The URL to validate
+ * @returns true if the URL is safe, false otherwise
+ */
+function isValidImageUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url, window.location.href);
+		const allowedProtocols = ["blob:", "data:", "https:", "http:"];
+		return allowedProtocols.includes(parsed.protocol);
+	} catch {
+		return false;
+	}
+}
+
 // MaxRects bin packing algorithm with rotation support
 // Based on the "Best Short Side Fit" heuristic
 class MaxRectsPacker {
@@ -131,7 +147,7 @@ class MaxRectsPacker {
 					y: freeRect.y,
 					width: placedRect.x - freeRect.x,
 					height: freeRect.height,
-				} as Rect);
+				});
 			}
 
 			// Right portion
@@ -142,7 +158,7 @@ class MaxRectsPacker {
 					width:
 						freeRect.x + freeRect.width - (placedRect.x + placedRect.width),
 					height: freeRect.height,
-				} as Rect);
+				});
 			}
 
 			// Top portion
@@ -152,7 +168,7 @@ class MaxRectsPacker {
 					y: freeRect.y,
 					width: freeRect.width,
 					height: placedRect.y - freeRect.y,
-				} as Rect);
+				});
 			}
 
 			// Bottom portion
@@ -163,7 +179,7 @@ class MaxRectsPacker {
 					width: freeRect.width,
 					height:
 						freeRect.y + freeRect.height - (placedRect.y + placedRect.height),
-				} as Rect);
+				});
 			}
 		}
 
@@ -330,6 +346,11 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 	// Add image to print list
 	const addImageToPrint = useCallback(
 		(sourceImage: { id: string; url: string }) => {
+			if (!isValidImageUrl(sourceImage.url)) {
+				console.error("Invalid or unsafe image URL:", sourceImage.url);
+				return;
+			}
+
 			const img = new Image();
 			img.crossOrigin = "anonymous";
 			img.onload = () => {
@@ -691,7 +712,13 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 		iframe.style.border = "none";
 		document.body.appendChild(iframe);
 
-		const doc = iframe.contentDocument!;
+		const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+		if (!doc) {
+			console.error("Unable to access iframe document");
+			document.body.removeChild(iframe);
+			return;
+		}
+
 		doc.open();
 		doc.write(`
       <!DOCTYPE html>
@@ -879,9 +906,19 @@ export function PrintLayout({ images }: PrintLayoutProps) {
 		iframe.contentWindow?.print();
 
 		// Clean up after print dialog closes
-		setTimeout(() => {
-			document.body.removeChild(iframe);
-		}, 1000);
+		const cleanup = () => {
+			if (document.body.contains(iframe)) {
+				document.body.removeChild(iframe);
+			}
+		};
+
+		// Listen for afterprint event (preferred method)
+		iframe.contentWindow?.addEventListener("afterprint", cleanup, {
+			once: true,
+		});
+
+		// Conservative fallback timeout if afterprint doesn't fire
+		setTimeout(cleanup, 5000);
 	}, [pages, effectiveWidth, effectiveHeight, imageMargin]);
 
 	return (

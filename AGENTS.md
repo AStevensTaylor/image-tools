@@ -8,7 +8,7 @@
 Browser-based image manipulation SPA (React 19 + Bun) for cropping, format conversion, and GIF frame extraction. Deployed to Cloudflare Workers. No server—fully client-side using Canvas API and File System Access API.
 
 ## STRUCTURE
-```
+```text
 ./
 ├── src/
 │   ├── components/       # 7 feature components + ui/ subdirectory

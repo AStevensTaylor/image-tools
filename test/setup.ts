@@ -127,8 +127,32 @@ class MockCanvas {
 		return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 	}
 
-	toBlob() {
-		return undefined;
+	toBlob(
+		callback: (blob: Blob | null) => void,
+		type?: string,
+		quality?: number,
+	): void {
+		setTimeout(() => {
+			try {
+				const dataUrl = this.toDataURL(type);
+				const base64Index = dataUrl.indexOf(",");
+				if (base64Index === -1) {
+					callback(null);
+					return;
+				}
+				const base64String = dataUrl.slice(base64Index + 1);
+				const binaryString = atob(base64String);
+				const bytes = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					bytes[i] = binaryString.charCodeAt(i);
+				}
+				const mimeType = type || "image/png";
+				const blob = new Blob([bytes], { type: mimeType });
+				callback(blob);
+			} catch {
+				callback(null);
+			}
+		}, 0);
 	}
 }
 
@@ -144,5 +168,5 @@ document.createElement = function <K extends keyof HTMLElementTagNameMap>(
 		document,
 		tagName,
 		options,
-	) as HTMLElementTagNameMap[K];
+	) as unknown as HTMLElementTagNameMap[K];
 };
