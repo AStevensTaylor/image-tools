@@ -31,8 +31,8 @@
 		"gifuct-js": "^2.1.2",
 		"jspdf": "^4.0.0",
 		"lucide-react": "^0.563.0",
-		"react": "^19.2.3",
-		"react-dom": "^19.2.3",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
 		"tailwind-merge": "^3.4.0"
 	},
 	"devDependencies": {
@@ -44,7 +44,7 @@
 		"@testing-library/user-event": "^14.6.1",
 		"@types/bun": "^1.3.8",
 		"@types/dompurify": "^3.2.0",
-		"@types/react": "^19.2.9",
+		"@types/react": "^19.2.10",
 		"@types/react-dom": "^19.2.3",
 		"@types/web-app-manifest": "^1.0.9",
 		"@vitest/coverage-v8": "^4.0.18",
