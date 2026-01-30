@@ -58,11 +58,14 @@ self.addEventListener("fetch", (event) => {
 					// Cache successful responses
 					if (response.ok) {
 						const responseClone = response.clone();
-						caches.open(CACHE_NAME).then((cache) => {
-							cache.put(request, responseClone);
-						}).catch(() => {
-						    // Silently fail - response is already being returned
-						});
+						caches
+							.open(CACHE_NAME)
+							.then((cache) => {
+								cache.put(request, responseClone);
+							})
+							.catch(() => {
+								// Silently fail - response is already being returned
+							});
 					}
 					return response;
 				})

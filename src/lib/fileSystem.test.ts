@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, test } from "vitest";
-import type { TestGlobal, TestWindow } from "../../test/types";
 import {
 	checkFilesExist,
 	dataUrlToBlob,
@@ -8,6 +7,7 @@ import {
 	saveFilesToDirectory,
 	saveFileToDirectory,
 } from "@/lib/fileSystem";
+import type { TestGlobal, TestWindow } from "../../test/types";
 
 interface MockFileSystemFileHandle {
 	name: string;

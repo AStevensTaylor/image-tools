@@ -183,7 +183,6 @@ export function ImageGallery({
 		},
 		[onImagesAdd],
 	);
-	);
 
 	const handleDragOver = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
